@@ -1,0 +1,11 @@
+name,description
+"Dark Mode Toggle","Add dark theme option to settings for better user experience at night"
+"Export to PDF","Allow users to export reports and dashboards as PDF files"
+"Social Media Login","Enable login via Google, Facebook, and Apple accounts"
+"Two-Factor Authentication","Add 2FA for enhanced account security"
+"Mobile App Push Notifications","Send real-time notifications to mobile users"
+"Advanced Search Filters","Add more granular filtering options to the search functionality"
+"Bulk Data Import","Allow users to import large datasets via CSV or Excel"
+"Real-time Collaboration","Enable multiple users to work on the same document simultaneously"
+"Custom Branding","Allow enterprise customers to customize the app with their branding"
+"API Rate Limiting","Implement rate limiting to prevent API abuse"
