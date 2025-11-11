@@ -312,8 +312,8 @@ export class IceResultsScreen extends LitElement {
       // In batch mode, complete the feature and move to next
       appStore.completeBatchFeature();
     } else {
-      // Show a brief confirmation (could be enhanced with a toast notification)
-      alert('Score saved to export list!');
+      // Show a toast confirmation
+      appStore.showToast('Score saved to export list!', 'success');
     }
   }
 

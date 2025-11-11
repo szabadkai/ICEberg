@@ -1,5 +1,6 @@
-import { AppState, AppStep, ScoreResult, QuestionResponse, FeatureToScore, BatchScoring } from '../types';
+import { AppState, AppStep, ScoreResult, QuestionResponse, FeatureToScore, BatchScoring, Toast, ConfirmDialog } from '../types';
 import { getTierForScore } from '../data/tiers';
+import { supabaseStore } from './supabase-store';
 
 const STORAGE_KEY = 'ice-scorecard-data';
 const MAX_SAVED_SCORES = 100;
@@ -7,9 +8,47 @@ const MAX_SAVED_SCORES = 100;
 export class AppStore {
   private state: AppState;
   private listeners: Set<(state: AppState) => void> = new Set();
+  private isRestoringFromHistory = false;
 
   constructor() {
     this.state = this.loadState();
+    this.initializeHistory();
+    this.loadScoresFromSupabase();
+  }
+
+  private async loadScoresFromSupabase() {
+    if (!supabaseStore) return; // Supabase not configured
+
+    try {
+      const scores = await supabaseStore.loadScores();
+      if (scores.length > 0) {
+        this.state.savedScores = scores;
+        this.notify();
+      }
+    } catch (error) {
+      console.error('Failed to load scores from Supabase:', error);
+    }
+  }
+
+  private initializeHistory() {
+    // Handle browser back/forward buttons
+    window.addEventListener('popstate', (event) => {
+      if (event.state && event.state.step) {
+        this.isRestoringFromHistory = true;
+        this.state.currentStep = event.state.step;
+        this.notify();
+        this.isRestoringFromHistory = false;
+      }
+    });
+
+    // Set initial history state
+    if (window.history.state === null) {
+      window.history.replaceState(
+        { step: this.state.currentStep },
+        '',
+        `#${this.state.currentStep}`
+      );
+    }
   }
 
   private loadState(): AppState {
@@ -27,6 +66,7 @@ export class AppStore {
             effort: [],
           },
           savedScores: data.savedScores || [],
+          toasts: [],
         };
       }
     } catch (error) {
@@ -43,6 +83,7 @@ export class AppStore {
         effort: [],
       },
       savedScores: [],
+      toasts: [],
     };
   }
 
@@ -77,6 +118,16 @@ export class AppStore {
 
   setStep(step: AppStep): void {
     this.state.currentStep = step;
+
+    // Update browser history (but not when restoring from history)
+    if (!this.isRestoringFromHistory) {
+      window.history.pushState(
+        { step },
+        '',
+        `#${step}`
+      );
+    }
+
     this.notify();
   }
 
@@ -145,10 +196,10 @@ export class AppStore {
     }
   }
 
-  saveCurrentScore(): void {
+  async saveCurrentScore(): Promise<void> {
     if (this.state.currentScore) {
-      if (this.state.savedScores.length >= MAX_SAVED_SCORES) {
-        alert(`Maximum of ${MAX_SAVED_SCORES} scores reached. Please clear old scores.`);
+      if (this.state.savedScores.length >= MAX_SAVED_SCORES && !supabaseStore) {
+        this.showToast(`Maximum of ${MAX_SAVED_SCORES} scores reached. Please clear old scores.`, 'error');
         return;
       }
 
@@ -160,13 +211,32 @@ export class AppStore {
         updatedAt: new Date().toISOString(),
       };
 
-      this.state.savedScores.push(scoreWithId);
+      // Save to Supabase if configured
+      if (supabaseStore) {
+        try {
+          const savedScore = await supabaseStore.saveScore(scoreWithId);
+          if (savedScore) {
+            // Use the score from Supabase (has proper UUID)
+            this.state.savedScores.push(savedScore);
+          } else {
+            // Fallback to local storage
+            this.state.savedScores.push(scoreWithId);
+          }
+        } catch (error) {
+          console.error('Failed to save to Supabase, using local storage:', error);
+          this.state.savedScores.push(scoreWithId);
+        }
+      } else {
+        // No Supabase, just use local storage
+        this.state.savedScores.push(scoreWithId);
+      }
+
       this.saveState();
       this.notify();
     }
   }
 
-  updateScore(id: string, updates: Partial<ScoreResult>): void {
+  async updateScore(id: string, updates: Partial<ScoreResult>): Promise<void> {
     const index = this.state.savedScores.findIndex((score) => score.id === id);
     if (index === -1) {
       console.error(`Score with ID ${id} not found`);
@@ -186,14 +256,32 @@ export class AppStore {
 
     updatedScore.updatedAt = new Date().toISOString();
 
+    // Update in Supabase if configured
+    if (supabaseStore) {
+      try {
+        await supabaseStore.updateScore(id, updatedScore);
+      } catch (error) {
+        console.error('Failed to update in Supabase:', error);
+      }
+    }
+
     this.state.savedScores[index] = updatedScore;
     this.saveState();
     this.notify();
   }
 
-  deleteScore(id: string): void {
+  async deleteScore(id: string): Promise<void> {
     const index = this.state.savedScores.findIndex((score) => score.id === id);
     if (index !== -1) {
+      // Delete from Supabase if configured
+      if (supabaseStore) {
+        try {
+          await supabaseStore.deleteScore(id);
+        } catch (error) {
+          console.error('Failed to delete from Supabase:', error);
+        }
+      }
+
       this.state.savedScores.splice(index, 1);
       this.saveState();
       this.notify();
@@ -204,7 +292,16 @@ export class AppStore {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  clearAllScores(): void {
+  async clearAllScores(): Promise<void> {
+    // Delete from Supabase if configured
+    if (supabaseStore) {
+      try {
+        await supabaseStore.deleteAllScores();
+      } catch (error) {
+        console.error('Failed to clear scores from Supabase:', error);
+      }
+    }
+
     this.state.savedScores = [];
     this.saveState();
     this.notify();
@@ -263,6 +360,73 @@ export class AppStore {
     this.notify();
   }
 
+  startScoringBatchFeatureByIndex(index: number): void {
+    if (!this.state.batchScoring) return;
+    if (index < 0 || index >= this.state.batchScoring.features.length) return;
+
+    const feature = this.state.batchScoring.features[index];
+    if (!feature || feature.status === 'completed') return;
+
+    // Update current index
+    this.state.batchScoring.currentFeatureIndex = index;
+
+    // Mark as in-progress
+    feature.status = 'in-progress';
+
+    // Set up for scoring
+    this.state.featureName = feature.name;
+    this.state.scoredBy = this.state.batchScoring.scoredBy;
+    this.state.responses = {
+      impact: [],
+      confidence: [],
+      effort: [],
+    };
+    this.state.currentScore = undefined;
+    this.state.currentStep = 'impact-intro';
+    this.notify();
+  }
+
+  skipCurrentBatchFeature(): void {
+    if (!this.state.batchScoring) return;
+
+    const currentFeature = this.state.batchScoring.features[this.state.batchScoring.currentFeatureIndex];
+    if (!currentFeature) return;
+
+    // Mark as skipped
+    currentFeature.status = 'skipped';
+
+    // Move to next pending feature
+    this.moveToNextPendingFeature();
+  }
+
+  private moveToNextPendingFeature(): void {
+    if (!this.state.batchScoring) return;
+
+    const features = this.state.batchScoring.features;
+    const currentIndex = this.state.batchScoring.currentFeatureIndex;
+
+    // Find next pending feature
+    for (let i = currentIndex + 1; i < features.length; i++) {
+      if (features[i].status === 'pending') {
+        this.state.batchScoring.currentFeatureIndex = i;
+        this.notify();
+        return;
+      }
+    }
+
+    // If no pending features found after current, check from beginning
+    for (let i = 0; i < currentIndex; i++) {
+      if (features[i].status === 'pending') {
+        this.state.batchScoring.currentFeatureIndex = i;
+        this.notify();
+        return;
+      }
+    }
+
+    // No pending features left, stay on batch list
+    this.notify();
+  }
+
   completeBatchFeature(): void {
     if (!this.state.batchScoring) return;
 
@@ -273,17 +437,9 @@ export class AppStore {
     // Mark as completed
     currentFeature.status = 'completed';
 
-    // Move to next feature
-    const nextIndex = currentIndex + 1;
-    if (nextIndex < this.state.batchScoring.features.length) {
-      this.state.batchScoring.currentFeatureIndex = nextIndex;
-      this.state.currentStep = 'batch-list';
-    } else {
-      // All features scored, go to export
-      this.state.currentStep = 'batch-list';
-    }
-
-    this.notify();
+    // Move to next pending feature
+    this.state.currentStep = 'batch-list';
+    this.moveToNextPendingFeature();
   }
 
   cancelBatchScoring(): void {
@@ -294,6 +450,73 @@ export class AppStore {
 
   isBatchScoring(): boolean {
     return !!this.state.batchScoring;
+  }
+
+  // Toast management
+  showToast(message: string, type: Toast['type'] = 'info', duration: number = 4000): void {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const toast: Toast = { id, message, type, duration };
+
+    this.state.toasts.push(toast);
+    this.notify();
+
+    // Auto-remove after duration
+    if (duration > 0) {
+      setTimeout(() => {
+        this.removeToast(id);
+      }, duration);
+    }
+  }
+
+  removeToast(id: string): void {
+    this.state.toasts = this.state.toasts.filter(t => t.id !== id);
+    this.notify();
+  }
+
+  // Confirm dialog management
+  showConfirm(
+    title: string,
+    message: string,
+    options?: {
+      confirmText?: string;
+      cancelText?: string;
+      type?: 'danger' | 'warning' | 'info';
+    }
+  ): Promise<boolean> {
+    return new Promise((resolve) => {
+      const id = `confirm-${Date.now()}`;
+      const dialog: ConfirmDialog = {
+        id,
+        title,
+        message,
+        confirmText: options?.confirmText,
+        cancelText: options?.cancelText,
+        type: options?.type,
+        onConfirm: () => {
+          this.state.confirmDialog = undefined;
+          this.notify();
+          resolve(true);
+        },
+        onCancel: () => {
+          this.state.confirmDialog = undefined;
+          this.notify();
+          resolve(false);
+        },
+      };
+
+      this.state.confirmDialog = dialog;
+      this.notify();
+    });
+  }
+
+  handleConfirmResponse(id: string, confirmed: boolean): void {
+    if (this.state.confirmDialog && this.state.confirmDialog.id === id) {
+      if (confirmed && this.state.confirmDialog.onConfirm) {
+        this.state.confirmDialog.onConfirm();
+      } else if (!confirmed && this.state.confirmDialog.onCancel) {
+        this.state.confirmDialog.onCancel();
+      }
+    }
   }
 }
 

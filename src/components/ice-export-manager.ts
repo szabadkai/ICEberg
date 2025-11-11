@@ -388,21 +388,29 @@ export class IceExportManager extends LitElement {
 
   private handleExport() {
     if (this.scores.length === 0) {
-      alert('No scores to export');
+      appStore.showToast('No scores to export', 'warning');
       return;
     }
 
     try {
       exportToCSV(this.scores);
+      appStore.showToast('Scores exported successfully!', 'success');
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Failed to export CSV. Please try again.');
+      appStore.showToast('Failed to export CSV. Please try again.', 'error');
     }
   }
 
-  private handleClearAll() {
-    if (confirm('Are you sure you want to clear all saved scores? This cannot be undone.')) {
+  private async handleClearAll() {
+    const confirmed = await appStore.showConfirm(
+      'Clear All Scores',
+      'Are you sure you want to clear all saved scores? This cannot be undone.',
+      { type: 'danger', confirmText: 'Clear All', cancelText: 'Cancel' }
+    );
+
+    if (confirmed) {
       appStore.clearAllScores();
+      appStore.showToast('All scores cleared', 'success');
     }
   }
 
@@ -415,11 +423,18 @@ export class IceExportManager extends LitElement {
     this.showEditModal = true;
   }
 
-  private handleDelete(score: ScoreResult) {
+  private async handleDelete(score: ScoreResult) {
     if (!score.id) return;
 
-    if (confirm(`Delete "${score.featureName}"? This cannot be undone.`)) {
+    const confirmed = await appStore.showConfirm(
+      'Delete Score',
+      `Delete "${score.featureName}"? This cannot be undone.`,
+      { type: 'danger', confirmText: 'Delete', cancelText: 'Cancel' }
+    );
+
+    if (confirmed) {
       appStore.deleteScore(score.id);
+      appStore.showToast('Score deleted', 'success');
     }
   }
 

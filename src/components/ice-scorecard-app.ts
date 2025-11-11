@@ -12,6 +12,8 @@ import './ice-question-section';
 import './ice-justification-input';
 import './ice-results-screen';
 import './ice-export-manager';
+import './ice-toast-container';
+import './ice-confirm-container';
 
 @customElement('ice-scorecard-app')
 export class IceScorecardApp extends LitElement {
@@ -85,6 +87,12 @@ export class IceScorecardApp extends LitElement {
           ${this.renderCurrentStep()}
         </div>
       </div>
+
+      <!-- Toast notifications -->
+      <ice-toast-container></ice-toast-container>
+
+      <!-- Confirm dialog -->
+      <ice-confirm-container></ice-confirm-container>
     `;
   }
 

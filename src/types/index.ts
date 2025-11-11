@@ -58,7 +58,7 @@ export interface FeatureToScore {
   id: string;
   name: string;
   description?: string;
-  status: 'pending' | 'in-progress' | 'completed';
+  status: 'pending' | 'in-progress' | 'completed' | 'skipped';
 }
 
 export interface BatchScoring {
@@ -82,6 +82,24 @@ export type AppStep =
   | 'results'
   | 'export';
 
+export interface Toast {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info' | 'warning';
+  duration?: number;
+}
+
+export interface ConfirmDialog {
+  id: string;
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  type?: 'danger' | 'warning' | 'info';
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
+
 export interface AppState {
   currentStep: AppStep;
   featureName: string;
@@ -90,4 +108,6 @@ export interface AppState {
   savedScores: ScoreResult[];
   currentScore?: ScoreResult;
   batchScoring?: BatchScoring;
+  toasts: Toast[];
+  confirmDialog?: ConfirmDialog;
 }

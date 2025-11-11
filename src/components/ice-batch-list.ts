@@ -77,6 +77,11 @@ export class IceBatchList extends LitElement {
       background: #f0fdf4;
     }
 
+    .feature-item.skipped {
+      background: #fef3c7;
+      opacity: 0.8;
+    }
+
     .feature-status {
       font-size: 1.5rem;
       flex-shrink: 0;
@@ -208,6 +213,8 @@ export class IceBatchList extends LitElement {
     }
 
     const completed = this.features.filter((f) => f.status === 'completed').length;
+    const skipped = this.features.filter((f) => f.status === 'skipped').length;
+    const pending = this.features.filter((f) => f.status === 'pending').length;
     const total = this.features.length;
     const progress = (completed / total) * 100;
 
@@ -215,7 +222,7 @@ export class IceBatchList extends LitElement {
       <div class="batch-container">
         <h2>Batch Scoring</h2>
         <div class="progress-info">
-          ${completed} of ${total} features scored by ${this.scoredBy}
+          ${completed} scored · ${skipped} skipped · ${pending} pending
         </div>
 
         <div class="progress-bar-container">
@@ -225,10 +232,10 @@ export class IceBatchList extends LitElement {
         <div class="feature-list">${this.features.map((f, i) => this.renderFeatureItem(f, i))}</div>
 
         <div class="action-buttons">
-          ${completed === total
+          ${pending === 0
             ? html`
                 <button class="btn btn-primary" @click=${this.handleViewResults}>
-                  View All Results
+                  View All Results (${completed} scored)
                 </button>
               `
             : html`
@@ -245,13 +252,29 @@ export class IceBatchList extends LitElement {
   private renderFeatureItem(feature: FeatureToScore, index: number) {
     const isCurrent = index === this.currentIndex;
     const isCompleted = feature.status === 'completed';
+    const isSkipped = feature.status === 'skipped';
+    const isPending = feature.status === 'pending';
+    const canScore = isPending || isSkipped;
+
+    // Allow skipping any pending feature, including the last one
+    const canSkip = isCurrent && isPending;
 
     let statusIcon = '⏳';
-    if (isCompleted) statusIcon = '✅';
-    else if (isCurrent) statusIcon = '👉';
+    let itemClass = '';
+
+    if (isCompleted) {
+      statusIcon = '✅';
+      itemClass = 'completed';
+    } else if (isSkipped) {
+      statusIcon = '⏭️';
+      itemClass = 'skipped';
+    } else if (isCurrent) {
+      statusIcon = '👉';
+      itemClass = 'current';
+    }
 
     return html`
-      <div class="feature-item ${isCurrent ? 'current' : ''} ${isCompleted ? 'completed' : ''}">
+      <div class="feature-item ${itemClass}">
         <div class="feature-status">${statusIcon}</div>
         <div class="feature-content">
           <div class="feature-name">${feature.name}</div>
@@ -259,10 +282,26 @@ export class IceBatchList extends LitElement {
             ? html`<div class="feature-description">${feature.description}</div>`
             : ''}
         </div>
-        ${isCurrent && !isCompleted
+        ${canScore
           ? html`
               <div class="feature-actions">
-                <button class="btn btn-primary" @click=${this.handleScoreCurrent}>Score</button>
+                <button
+                  class="btn btn-primary"
+                  @click=${() => this.handleScoreFeature(index)}
+                >
+                  ${isSkipped ? 'Re-score' : 'Score'}
+                </button>
+                ${canSkip
+                  ? html`
+                      <button
+                        class="btn btn-secondary"
+                        @click=${this.handleSkip}
+                        title="Skip this feature"
+                      >
+                        Skip
+                      </button>
+                    `
+                  : ''}
               </div>
             `
           : ''}
@@ -284,13 +323,29 @@ export class IceBatchList extends LitElement {
     appStore.startScoringCurrentBatchFeature();
   }
 
+  private handleScoreFeature(index: number) {
+    appStore.startScoringBatchFeatureByIndex(index);
+  }
+
+  private handleSkip() {
+    appStore.skipCurrentBatchFeature();
+    appStore.showToast('Feature skipped', 'info', 2000);
+  }
+
   private handleViewResults() {
     appStore.setStep('export');
   }
 
-  private handleCancel() {
-    if (confirm('Cancel batch scoring? Any unsaved progress will be lost.')) {
+  private async handleCancel() {
+    const confirmed = await appStore.showConfirm(
+      'Cancel Batch Scoring',
+      'Cancel batch scoring? All completed scores will be saved, but the batch session will end.',
+      { type: 'warning', confirmText: 'Cancel Batch', cancelText: 'Continue Scoring' }
+    );
+
+    if (confirmed) {
       appStore.cancelBatchScoring();
+      appStore.showToast('Batch scoring cancelled', 'info');
     }
   }
 

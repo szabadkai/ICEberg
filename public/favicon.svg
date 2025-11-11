@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <!-- Sky gradient -->
+    <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#7DD3FC;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Water gradient -->
+    <linearGradient id="waterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1E40AF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E3A8A;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Ice gradient for visible part -->
+    <linearGradient id="iceGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#F0F9FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E0F2FE;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Underwater ice gradient -->
+    <linearGradient id="underwaterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#7DD3FC;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#60A5FA;stop-opacity:0.6" />
+    </linearGradient>
+
+    <!-- Highlight for ice -->
+    <radialGradient id="highlight">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.6" />
+      <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="64" fill="url(#skyGrad)"/>
+
+  <!-- Water level -->
+  <ellipse cx="64" cy="64" rx="64" ry="45" fill="url(#waterGrad)"/>
+
+  <!-- Underwater iceberg (larger submerged portion) -->
+  <path d="M 40 64 L 88 64 L 90 88 L 75 102 L 64 105 L 53 102 L 38 88 Z"
+        fill="url(#underwaterGrad)"
+        stroke="#60A5FA"
+        stroke-width="1.5"
+        opacity="0.85"/>
+
+  <!-- Above water iceberg (smaller visible tip) -->
+  <path d="M 64 28 L 88 64 L 40 64 Z"
+        fill="url(#iceGrad)"
+        stroke="#BAE6FD"
+        stroke-width="2"/>
+
+  <!-- Ice facets and details -->
+  <path d="M 64 28 L 76 46"
+        stroke="#BAE6FD"
+        stroke-width="2"
+        opacity="0.6"
+        stroke-linecap="round"/>
+  <path d="M 64 28 L 52 46"
+        stroke="#BAE6FD"
+        stroke-width="2"
+        opacity="0.6"
+        stroke-linecap="round"/>
+  <path d="M 55 50 L 73 50"
+        stroke="#BAE6FD"
+        stroke-width="1.5"
+        opacity="0.4"
+        stroke-linecap="round"/>
+
+  <!-- Shine/highlight on ice peak -->
+  <ellipse cx="58" cy="38" rx="8" ry="12"
+           fill="url(#highlight)"
+           opacity="0.5"/>
+
+  <!-- Water reflection -->
+  <ellipse cx="64" cy="64" rx="58" ry="3"
+           fill="#FFFFFF"
+           opacity="0.15"/>
+
+  <!-- Small water ripples -->
+  <path d="M 10 64 Q 20 62 30 64 Q 40 66 50 64"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="1.5"
+        opacity="0.2"
+        stroke-linecap="round"/>
+  <path d="M 78 64 Q 88 62 98 64 Q 108 66 118 64"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="1.5"
+        opacity="0.2"
+        stroke-linecap="round"/>
+</svg>

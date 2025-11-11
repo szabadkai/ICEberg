@@ -10,6 +10,8 @@ import './components/ice-justification-input';
 import './components/ice-results-screen';
 import './components/ice-export-manager';
 import './components/ice-illustration';
+import './components/ice-toast-container';
+import './components/ice-confirm-container';
 
 // The app is automatically rendered via the custom element in index.html
 console.log('ICE Scorecard App initialized');
