@@ -21,21 +21,30 @@ npm run build:standalone
 This will:
 1. Use `.env.standalone` configuration (disables Supabase)
 2. Build the application without collaborative features
-3. Output to `dist/` directory
+3. Output to `docs/` directory (for GitHub Pages)
 4. Configure base path for GitHub Pages deployment
 
 ### Deployment
 
-The project includes a GitHub Actions workflow that automatically:
+You have two options for deployment:
+
+**Option 1: Direct deployment (recommended for simplicity)**
+1. Run `npm run build:standalone` locally
+2. Commit the `docs/` directory to your repository
+3. Go to repository Settings → Pages
+4. Set Source to "Deploy from a branch"
+5. Select branch: `main` and folder: `/docs`
+6. The app will be available at: `https://your-username.github.io/ICEberg/`
+
+**Option 2: GitHub Actions (automated)**
+The project includes a workflow that automatically:
 1. Builds the standalone version on push to `main`
 2. Deploys to GitHub Pages
 
-To enable GitHub Pages:
+To enable:
 1. Go to your repository Settings → Pages
 2. Set Source to "GitHub Actions"
 3. Push to `main` branch
-
-The app will be available at: `https://your-username.github.io/ICEberg/`
 
 ## Collaborative Build (Full Features)
 
