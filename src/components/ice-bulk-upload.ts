@@ -336,7 +336,7 @@ export class IceBulkUpload extends LitElement {
     });
   }
 
-  private handleParseComplete(results: Papa.ParseResult<any>) {
+  private async handleParseComplete(results: Papa.ParseResult<any>) {
     this.uploading = false;
 
     if (!results.data || results.data.length === 0) {
@@ -351,23 +351,51 @@ export class IceBulkUpload extends LitElement {
       return;
     }
 
-    // Convert to FeatureToScore format
-    const features: FeatureToScore[] = results.data
-      .map((row: any, index: number) => ({
-        id: `batch-${Date.now()}-${index}`,
-        name: (row.name || row.Name || '').trim(),
-        description: (row.description || row.Description || '').trim() || undefined,
-        status: 'pending' as const,
-      }))
-      .filter((f) => f.name.length > 0); // Filter out empty rows
+    const state = appStore.getState();
+    const currentSession = state.currentSession;
 
-    if (features.length === 0) {
-      this.error = 'No valid features found in CSV';
-      return;
+    // Check if we're in a collaborative session context
+    if (currentSession) {
+      // Add features to the session
+      const featuresToAdd = results.data
+        .map((row: any) => ({
+          name: (row.name || row.Name || '').trim(),
+          description: (row.description || row.Description || '').trim() || undefined,
+        }))
+        .filter((f) => f.name.length > 0);
+
+      if (featuresToAdd.length === 0) {
+        this.error = 'No valid features found in CSV';
+        return;
+      }
+
+      this.uploading = true;
+      const addedFeatures = await appStore.addFeaturesToSession(currentSession.id, featuresToAdd);
+      this.uploading = false;
+
+      if (addedFeatures.length > 0) {
+        // Navigate to session dashboard to start scoring
+        appStore.setStep('session-dashboard');
+      }
+    } else {
+      // Regular batch scoring (non-session mode)
+      const features: FeatureToScore[] = results.data
+        .map((row: any, index: number) => ({
+          id: `batch-${Date.now()}-${index}`,
+          name: (row.name || row.Name || '').trim(),
+          description: (row.description || row.Description || '').trim() || undefined,
+          status: 'pending' as const,
+        }))
+        .filter((f) => f.name.length > 0); // Filter out empty rows
+
+      if (features.length === 0) {
+        this.error = 'No valid features found in CSV';
+        return;
+      }
+
+      // Start batch scoring
+      appStore.startBatchScoring(features, this.scoredBy.trim());
     }
-
-    // Start batch scoring
-    appStore.startBatchScoring(features, this.scoredBy.trim());
   }
 
   private handleBack() {

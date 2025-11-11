@@ -1,6 +1,7 @@
-import { AppState, AppStep, ScoreResult, QuestionResponse, FeatureToScore, BatchScoring, Toast, ConfirmDialog } from '../types';
+import { AppState, AppStep, ScoreResult, QuestionResponse, FeatureToScore, BatchScoring, Toast, ConfirmDialog, ScoringSession, SessionFeature } from '../types';
 import { getTierForScore } from '../data/tiers';
 import { supabaseStore } from './supabase-store';
+import { sessionStore } from './session-store';
 
 const STORAGE_KEY = 'ice-scorecard-data';
 const MAX_SAVED_SCORES = 100;
@@ -14,6 +15,7 @@ export class AppStore {
     this.state = this.loadState();
     this.initializeHistory();
     this.loadScoresFromSupabase();
+    this.loadSessionsFromSupabase();
   }
 
   private async loadScoresFromSupabase() {
@@ -27,6 +29,18 @@ export class AppStore {
       }
     } catch (error) {
       console.error('Failed to load scores from Supabase:', error);
+    }
+  }
+
+  private async loadSessionsFromSupabase() {
+    try {
+      const sessions = await sessionStore.loadSessions();
+      if (sessions.length > 0) {
+        this.state.sessions = sessions;
+        this.notify();
+      }
+    } catch (error) {
+      console.error('Failed to load sessions from Supabase:', error);
     }
   }
 
@@ -67,6 +81,7 @@ export class AppStore {
           },
           savedScores: data.savedScores || [],
           toasts: [],
+          sessions: [],
         };
       }
     } catch (error) {
@@ -84,6 +99,7 @@ export class AppStore {
       },
       savedScores: [],
       toasts: [],
+      sessions: [],
     };
   }
 
@@ -175,6 +191,12 @@ export class AppStore {
       tier: getTierForScore(iceScore),
       date,
       time,
+      // Store detailed responses for later analysis
+      responses: {
+        impact: [...this.state.responses.impact],
+        confidence: [...this.state.responses.confidence],
+        effort: [...this.state.responses.effort],
+      },
     };
 
     this.state.currentScore = result;
@@ -517,6 +539,141 @@ export class AppStore {
         this.state.confirmDialog.onCancel();
       }
     }
+  }
+
+  // Session Management Methods
+
+  async createSession(
+    name: string,
+    createdBy: string,
+    description?: string,
+    aggregationMethod: 'mean' | 'median' | 'weighted' | 'trimmed' = 'mean'
+  ): Promise<ScoringSession | null> {
+    const session = await sessionStore.createSession(name, createdBy, description, aggregationMethod);
+    if (session) {
+      this.state.sessions.push(session);
+      this.state.currentSession = session;
+      this.notify();
+      this.showToast('Session created successfully', 'success');
+    }
+    return session;
+  }
+
+  async loadSessionWithDetails(sessionId: string) {
+    const sessionDetails = await sessionStore.loadSessionWithDetails(sessionId);
+    if (sessionDetails) {
+      // Update or add session to sessions list
+      const index = this.state.sessions.findIndex(s => s.id === sessionId);
+      if (index >= 0) {
+        this.state.sessions[index] = sessionDetails;
+      } else {
+        this.state.sessions.push(sessionDetails);
+      }
+      this.state.currentSession = sessionDetails;
+      this.notify();
+    }
+    return sessionDetails;
+  }
+
+  async addFeaturesToSession(sessionId: string, features: { name: string; description?: string }[]): Promise<SessionFeature[]> {
+    const addedFeatures = await sessionStore.addFeaturesToSession(sessionId, features);
+    if (addedFeatures.length > 0) {
+      this.showToast(`${addedFeatures.length} features added to session`, 'success');
+      // Reload session to get updated data
+      await this.loadSessionWithDetails(sessionId);
+    }
+    return addedFeatures;
+  }
+
+  async saveSessionScore(
+    sessionId: string,
+    featureId: string,
+    scoredBy: string,
+    impact: number,
+    confidence: number,
+    effort: number,
+    iceScore: number,
+    justification?: string,
+    responses?: any
+  ): Promise<boolean> {
+    const tier = getTierForScore(iceScore);
+    const score = await sessionStore.saveSessionScore(
+      sessionId,
+      featureId,
+      scoredBy,
+      impact,
+      confidence,
+      effort,
+      iceScore,
+      tier,
+      justification,
+      responses
+    );
+
+    if (score) {
+      this.showToast('Score saved to session', 'success');
+      return true;
+    } else {
+      this.showToast('Failed to save score', 'error');
+      return false;
+    }
+  }
+
+  async hasUserScoredFeature(sessionId: string, featureId: string, scoredBy: string): Promise<boolean> {
+    return await sessionStore.hasUserScoredFeature(sessionId, featureId, scoredBy);
+  }
+
+  async getUserScore(sessionId: string, featureId: string, scoredBy: string) {
+    return await sessionStore.getUserScore(sessionId, featureId, scoredBy);
+  }
+
+  async getFeatureBreakdown(sessionId: string, featureId: string) {
+    return await sessionStore.getFeatureBreakdown(sessionId, featureId);
+  }
+
+  async updateSessionStatus(sessionId: string, status: 'active' | 'completed' | 'archived'): Promise<boolean> {
+    const success = await sessionStore.updateSessionStatus(sessionId, status);
+    if (success) {
+      const session = this.state.sessions.find(s => s.id === sessionId);
+      if (session) {
+        session.status = status;
+        this.notify();
+      }
+      this.showToast(`Session marked as ${status}`, 'success');
+    }
+    return success;
+  }
+
+  async deleteSession(sessionId: string): Promise<boolean> {
+    const confirmed = await this.showConfirm(
+      'Delete Session',
+      'Delete this scoring session? All scores and data will be permanently deleted.',
+      { type: 'danger', confirmText: 'Delete', cancelText: 'Cancel' }
+    );
+
+    if (!confirmed) return false;
+
+    const success = await sessionStore.deleteSession(sessionId);
+    if (success) {
+      this.state.sessions = this.state.sessions.filter(s => s.id !== sessionId);
+      if (this.state.currentSession?.id === sessionId) {
+        this.state.currentSession = undefined;
+      }
+      this.notify();
+      this.showToast('Session deleted', 'success');
+    }
+    return success;
+  }
+
+  setCurrentSession(session: ScoringSession | undefined): void {
+    this.state.currentSession = session;
+    this.notify();
+  }
+
+  async refreshSessions(): Promise<void> {
+    const sessions = await sessionStore.loadSessions();
+    this.state.sessions = sessions;
+    this.notify();
   }
 }
 

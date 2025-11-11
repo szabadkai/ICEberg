@@ -1,5 +1,6 @@
 import { ScoreResult } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getTierForScore } from '../data/tiers';
 
 export class SupabaseStore {
   async loadScores(): Promise<ScoreResult[]> {
@@ -127,9 +128,6 @@ export class SupabaseStore {
   }
 
   private mapFromDatabase(row: any): ScoreResult {
-    // Import tier data dynamically to avoid circular dependency
-    const { getTierForScore } = require('../data/tiers');
-
     return {
       id: row.id,
       featureName: row.feature_name,
@@ -144,6 +142,7 @@ export class SupabaseStore {
       time: row.score_time,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      responses: row.responses || undefined,
     };
   }
 
@@ -160,6 +159,7 @@ export class SupabaseStore {
       justification: score.justification || null,
       score_date: score.date,
       score_time: score.time,
+      responses: score.responses || null,
     };
   }
 }

@@ -4,6 +4,7 @@ import { provide } from '@lit/context';
 import { appStateContext } from '../store/context';
 import { appStore } from '../store/store';
 import { AppState } from '../types';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 import './ice-landing-page';
 import './ice-feature-input';
@@ -14,6 +15,12 @@ import './ice-results-screen';
 import './ice-export-manager';
 import './ice-toast-container';
 import './ice-confirm-container';
+import './ice-session-create';
+import './ice-session-list';
+import './ice-session-dashboard';
+import './ice-session-visualize';
+import './ice-session-export';
+import './ice-feature-breakdown';
 
 @customElement('ice-scorecard-app')
 export class IceScorecardApp extends LitElement {
@@ -71,12 +78,28 @@ export class IceScorecardApp extends LitElement {
     }
   `;
 
-  connectedCallback() {
+  async connectedCallback() {
     super.connectedCallback();
     this.appState = appStore.getState();
     appStore.subscribe((newState) => {
       this.appState = newState;
     });
+
+    // Check for sessionId in URL parameters (only if Supabase is configured)
+    if (isSupabaseConfigured) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('sessionId');
+
+      if (sessionId) {
+        // Load the session and navigate to dashboard
+        const loaded = await appStore.loadSessionWithDetails(sessionId);
+        if (loaded) {
+          appStore.setStep('session-dashboard');
+        } else {
+          appStore.showToast('Session not found', 'error');
+        }
+      }
+    }
   }
 
   render() {
@@ -149,6 +172,18 @@ export class IceScorecardApp extends LitElement {
         return html`<ice-results-screen></ice-results-screen>`;
       case 'export':
         return html`<ice-export-manager></ice-export-manager>`;
+      case 'session-create':
+        return html`<ice-session-create></ice-session-create>`;
+      case 'session-list':
+        return html`<ice-session-list></ice-session-list>`;
+      case 'session-dashboard':
+        return html`<ice-session-dashboard></ice-session-dashboard>`;
+      case 'session-visualize':
+        return html`<ice-session-visualize></ice-session-visualize>`;
+      case 'session-export':
+        return html`<ice-session-export></ice-session-export>`;
+      case 'feature-breakdown':
+        return html`<ice-feature-breakdown></ice-feature-breakdown>`;
       default:
         return html`<ice-landing-page></ice-landing-page>`;
     }

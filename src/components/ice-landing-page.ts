@@ -1,6 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { appStore } from '../store/store';
+import { isSupabaseConfigured } from '../lib/supabase';
 import './ice-illustration';
 
 @customElement('ice-landing-page')
@@ -147,10 +148,37 @@ export class IceLandingPage extends LitElement {
           class="cta-button"
           @click=${this.handleBulkUpload}
           aria-label="Upload multiple features to score"
-          style="background: #10b981; margin-top: 1rem;"
+          style="background: #10b981;"
         >
           Bulk Upload Features
         </button>
+
+        ${isSupabaseConfigured ? html`
+          <div style="margin-top: 2rem; border-top: 2px solid #e5e7eb; padding-top: 2rem; width: 100%;">
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: #374151; margin-bottom: 1rem;">
+              Collaborative Scoring
+            </h3>
+            <p style="color: #6b7280; margin-bottom: 1rem; max-width: 500px; margin-left: auto; margin-right: auto;">
+              Create sessions for multiple team members to score the same features and analyze consensus
+            </p>
+            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+              <button
+                class="cta-button"
+                @click=${this.handleCreateSession}
+                style="background: #8b5cf6;"
+              >
+                Create New Session
+              </button>
+              <button
+                class="cta-button"
+                @click=${this.handleViewSessions}
+                style="background: white; color: #8b5cf6; border: 2px solid #8b5cf6;"
+              >
+                View Existing Sessions
+              </button>
+            </div>
+          </div>
+        ` : ''}
       </div>
     `;
   }
@@ -161,6 +189,14 @@ export class IceLandingPage extends LitElement {
 
   private handleBulkUpload() {
     appStore.setStep('batch-upload');
+  }
+
+  private handleCreateSession() {
+    appStore.setStep('session-create');
+  }
+
+  private handleViewSessions() {
+    appStore.setStep('session-list');
   }
 }
 

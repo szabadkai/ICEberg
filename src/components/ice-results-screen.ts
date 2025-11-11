@@ -305,14 +305,39 @@ export class IceResultsScreen extends LitElement {
     `;
   }
 
-  private handleSave() {
-    appStore.saveCurrentScore();
+  private async handleSave() {
+    const state = appStore.getState();
+    const currentSession = state.currentSession;
+    const currentSessionFeature = state.currentSessionFeature;
 
-    if (appStore.isBatchScoring()) {
+    // Check if we're in a session scoring context
+    if (currentSession && currentSessionFeature && this.score) {
+      // Save to session
+      const success = await appStore.saveSessionScore(
+        currentSession.id,
+        currentSessionFeature.id,
+        this.score.scoredBy,
+        this.score.impact,
+        this.score.confidence,
+        this.score.effort,
+        this.score.iceScore,
+        this.score.justification,
+        this.score.responses
+      );
+
+      if (success) {
+        // Reload session to get updated aggregates
+        await appStore.loadSessionWithDetails(currentSession.id);
+        // Navigate back to session dashboard
+        appStore.setStep('session-dashboard');
+      }
+    } else if (appStore.isBatchScoring()) {
       // In batch mode, complete the feature and move to next
+      appStore.saveCurrentScore();
       appStore.completeBatchFeature();
     } else {
-      // Show a toast confirmation
+      // Regular single score mode
+      appStore.saveCurrentScore();
       appStore.showToast('Score saved to export list!', 'success');
     }
   }

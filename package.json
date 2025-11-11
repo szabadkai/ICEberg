@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:standalone": "cp .env.standalone .env && vite build --mode standalone && rm .env",
+    "build:collaborative": "cp .env.collaborative .env && tsc && vite build && rm .env",
     "preview": "vite preview"
   },
   "repository": {
