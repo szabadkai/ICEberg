@@ -12,41 +12,46 @@ type IllustrationType =
   | 'tier4'
   | 'tier5';
 
+const getIllustrationPath = (filename: string) => {
+  const base = import.meta.env.BASE_URL || '/';
+  return `${base}illustrations/${filename}`;
+};
+
 const illustrationMap: Record<IllustrationType, { src: string; alt: string }> = {
   landing: {
-    src: '/illustrations/landing-illustration.png',
+    src: getIllustrationPath('landing-illustration.png'),
     alt: 'Product manager at crossroads with multiple priorities',
   },
   impact: {
-    src: '/illustrations/impact-illustration.png',
+    src: getIllustrationPath('impact-illustration.png'),
     alt: 'Target with arrows showing impact',
   },
   confidence: {
-    src: '/illustrations/confidence-illustration.png',
+    src: getIllustrationPath('confidence-illustration.png'),
     alt: 'Magnifying glass examining data and research',
   },
   effort: {
-    src: '/illustrations/effort-illustration.png',
+    src: getIllustrationPath('effort-illustration.png'),
     alt: 'Calendar and clock representing time and effort',
   },
   tier1: {
-    src: '/illustrations/tier1-illustration.png',
+    src: getIllustrationPath('tier1-illustration.png'),
     alt: 'Warning barrier - Low priority zone',
   },
   tier2: {
-    src: '/illustrations/tier2-illustration.png',
+    src: getIllustrationPath('tier2-illustration.png'),
     alt: 'Later pile - Medium priority',
   },
   tier3: {
-    src: '/illustrations/tier3-illustration.png',
+    src: getIllustrationPath('tier3-illustration.png'),
     alt: 'Kanban board - Good candidate',
   },
   tier4: {
-    src: '/illustrations/tier4-illustration.png',
+    src: getIllustrationPath('tier4-illustration.png'),
     alt: 'Thumbs up - Strong contender',
   },
   tier5: {
-    src: '/illustrations/tier5-illustration.png',
+    src: getIllustrationPath('tier5-illustration.png'),
     alt: 'Rocket launching - Top priority',
   },
 };

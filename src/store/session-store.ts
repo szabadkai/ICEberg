@@ -20,8 +20,7 @@ export class SessionStore {
     aggregationMethod: 'mean' | 'median' | 'weighted' | 'trimmed' = 'mean'
   ): Promise<ScoringSession | null> {
     if (!supabase) {
-      console.error('Supabase not configured');
-      return null;
+      return null; // Supabase not configured (standalone mode)
     }
 
     try {
@@ -54,7 +53,6 @@ export class SessionStore {
    */
   async loadSessions(): Promise<ScoringSession[]> {
     if (!supabase) {
-      console.error('Supabase not configured');
       return [];
     }
 
@@ -81,7 +79,6 @@ export class SessionStore {
    */
   async loadSessionWithDetails(sessionId: string): Promise<SessionWithDetails | null> {
     if (!supabase) {
-      console.error('Supabase not configured');
       return null;
     }
 
@@ -152,7 +149,6 @@ export class SessionStore {
     features: { name: string; description?: string }[]
   ): Promise<SessionFeature[]> {
     if (!supabase) {
-      console.error('Supabase not configured');
       return [];
     }
 
@@ -197,7 +193,6 @@ export class SessionStore {
     responses?: any
   ): Promise<SessionScore | null> {
     if (!supabase) {
-      console.error('Supabase not configured');
       return null;
     }
 
@@ -248,7 +243,6 @@ export class SessionStore {
     }
   ): Promise<SessionScore | null> {
     if (!supabase) {
-      console.error('Supabase not configured');
       return null;
     }
 
@@ -277,7 +271,6 @@ export class SessionStore {
    */
   async getSessionAggregates(sessionId: string): Promise<SessionAggregate[]> {
     if (!supabase) {
-      console.error('Supabase not configured');
       return [];
     }
 
@@ -307,7 +300,6 @@ export class SessionStore {
     featureId: string
   ): Promise<FeatureScoreBreakdown | null> {
     if (!supabase) {
-      console.error('Supabase not configured');
       return null;
     }
 
@@ -369,7 +361,6 @@ export class SessionStore {
     status: 'active' | 'completed' | 'archived'
   ): Promise<boolean> {
     if (!supabase) {
-      console.error('Supabase not configured');
       return false;
     }
 
@@ -396,7 +387,6 @@ export class SessionStore {
    */
   async deleteSession(sessionId: string): Promise<boolean> {
     if (!supabase) {
-      console.error('Supabase not configured');
       return false;
     }
 
@@ -427,7 +417,6 @@ export class SessionStore {
     scoredBy: string
   ): Promise<boolean> {
     if (!supabase) {
-      console.error('Supabase not configured');
       return false;
     }
 
@@ -462,7 +451,6 @@ export class SessionStore {
     scoredBy: string
   ): Promise<SessionScore | null> {
     if (!supabase) {
-      console.error('Supabase not configured');
       return null;
     }
 
