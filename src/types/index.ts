@@ -1,6 +1,7 @@
 export interface QuestionOption {
   label: string;
   value: number;
+  helpText?: string; // Tooltip explanation for this option
 }
 
 export interface Question {

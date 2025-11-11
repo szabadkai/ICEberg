@@ -117,6 +117,30 @@ export class IceQuestionSectionComponent extends LitElement {
     .option-content {
       flex: 1;
       color: #374151;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.25rem;
+      height: 1.25rem;
+      background: #e5e7eb;
+      border-radius: 50%;
+      font-size: 0.75rem;
+      color: #6b7280;
+      cursor: help;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .info-icon:hover {
+      background: #3b82f6;
+      color: white;
+      transform: scale(1.1);
     }
 
     .option-value {
@@ -254,7 +278,7 @@ export class IceQuestionSectionComponent extends LitElement {
     `;
   }
 
-  private renderQuestion(question: { id: string; text: string; helpText?: string; options: { label: string; value: number }[] }) {
+  private renderQuestion(question: { id: string; text: string; helpText?: string; options: { label: string; value: number; helpText?: string }[] }) {
     const selectedValue = this.responses.get(question.id);
 
     return html`
@@ -265,7 +289,7 @@ export class IceQuestionSectionComponent extends LitElement {
         <div class="options-list" role="radiogroup" aria-label="${question.text}">
           ${question.options.map(
             (option) => html`
-              <div class="option-item">
+              <div class="option-item" title="${option.helpText || ''}">
                 <label class="option-label">
                   <input
                     type="radio"
@@ -275,7 +299,10 @@ export class IceQuestionSectionComponent extends LitElement {
                     @change=${() => this.handleOptionSelect(question.id, option.value)}
                     aria-label="${option.label} - Score: ${option.value}"
                   />
-                  <span class="option-content">${option.label}</span>
+                  <span class="option-content">
+                    ${option.label}
+                    ${option.helpText ? html`<span class="info-icon" title="${option.helpText}">ⓘ</span>` : ''}
+                  </span>
                   <span class="option-value">${option.value}</span>
                 </label>
               </div>
