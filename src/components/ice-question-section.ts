@@ -17,65 +17,68 @@ export class IceQuestionSectionComponent extends LitElement {
     .section-container {
       display: flex;
       flex-direction: column;
-      gap: 2rem;
+      gap: 1.25rem;
     }
 
     .section-header {
       text-align: center;
+      display: grid;
+      gap: 0.4rem;
     }
 
     h2 {
-      font-size: 2rem;
+      font-size: 1.5rem;
       font-weight: 700;
       color: #1f2937;
-      margin: 0 0 0.5rem 0;
+      margin: 0;
     }
 
     .step-indicator {
       display: inline-block;
       background: #eff6ff;
       color: #3b82f6;
-      padding: 0.5rem 1rem;
-      border-radius: 1rem;
+      padding: 0.3rem 0.9rem;
+      border-radius: 999px;
       font-weight: 600;
-      font-size: 0.875rem;
-      margin-bottom: 1rem;
+      font-size: 0.8rem;
     }
 
     .description {
       color: #6b7280;
-      margin-bottom: 1rem;
+      margin: 0 auto;
+      max-width: 680px;
     }
 
     .questions-list {
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
     }
 
     .question-card {
       background: #f9fafb;
       border-radius: 0.75rem;
-      padding: 1.5rem;
+      padding: 1rem;
+      border: 1px solid #e5e7eb;
     }
 
     .question-text {
       font-weight: 600;
       color: #1f2937;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.3rem;
       font-size: 1rem;
     }
 
     .help-text {
       color: #6b7280;
-      font-size: 0.875rem;
-      margin-bottom: 1rem;
+      font-size: 0.85rem;
+      margin-bottom: 0.75rem;
     }
 
     .options-list {
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 0.5rem;
     }
 
     .option-item {
@@ -85,12 +88,13 @@ export class IceQuestionSectionComponent extends LitElement {
     .option-label {
       display: flex;
       align-items: center;
-      padding: 1rem;
+      padding: 0.75rem;
       background: white;
-      border: 2px solid #d1d5db;
+      border: 1px solid #d1d5db;
       border-radius: 0.5rem;
       cursor: pointer;
       transition: all 0.2s;
+      gap: 0.6rem;
     }
 
     .option-label:hover {
@@ -144,12 +148,12 @@ export class IceQuestionSectionComponent extends LitElement {
     }
 
     .option-value {
-      color: #6b7280;
-      font-size: 0.875rem;
+      color: #475569;
+      font-size: 0.85rem;
       font-weight: 600;
-      background: #f3f4f6;
-      padding: 0.25rem 0.75rem;
-      border-radius: 0.375rem;
+      background: #eef2ff;
+      padding: 0.15rem 0.65rem;
+      border-radius: 999px;
     }
 
     .error-message {
@@ -164,8 +168,8 @@ export class IceQuestionSectionComponent extends LitElement {
 
     .button-group {
       display: flex;
-      gap: 1rem;
-      margin-top: 1rem;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
     }
 
     button {
@@ -198,7 +202,7 @@ export class IceQuestionSectionComponent extends LitElement {
     .btn-secondary {
       background: white;
       color: #3b82f6;
-      border: 2px solid #3b82f6;
+      border: 1px solid #bfdbfe;
     }
 
     .btn-secondary:hover {
@@ -208,6 +212,21 @@ export class IceQuestionSectionComponent extends LitElement {
     button:focus {
       outline: 2px solid #3b82f6;
       outline-offset: 2px;
+    }
+    @media (max-width: 768px) {
+      .questions-list {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .button-group {
+        flex-direction: column;
+      }
+
+      .button-group button {
+        width: 100%;
+      }
     }
   `;
 
@@ -343,21 +362,15 @@ export class IceQuestionSectionComponent extends LitElement {
       return;
     }
 
-    let nextStep: AppStep;
-    switch (this.section) {
-      case 'impact':
-        nextStep = 'confidence-intro';
-        break;
-      case 'confidence':
-        nextStep = 'effort-intro';
-        break;
-      case 'effort':
-        // Calculate score and determine next step
-        const score = appStore.calculateScore();
-        nextStep = appStore.needsJustification() ? 'justification' : 'results';
-        break;
+    const nextSection = appStore.getNextActiveSection(this.section);
+    if (!nextSection) {
+      appStore.calculateScore();
+      const nextStep: AppStep = appStore.needsJustification() ? 'justification' : 'results';
+      appStore.setStep(nextStep);
+      return;
     }
-    appStore.setStep(nextStep);
+
+    appStore.setStep(`${nextSection}-intro` as AppStep);
   }
 }
 

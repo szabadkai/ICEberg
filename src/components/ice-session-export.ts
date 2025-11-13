@@ -234,15 +234,15 @@ export class IceSessionExport extends LitElement {
       return [
         feature.name,
         feature.description || '',
-        aggregate.avg_impact.toFixed(2),
-        aggregate.avg_confidence.toFixed(2),
-        aggregate.avg_effort.toFixed(2),
-        aggregate.avg_ice_score.toFixed(2),
+        this.formatNumber(aggregate.avg_impact),
+        this.formatNumber(aggregate.avg_confidence),
+        this.formatNumber(aggregate.avg_effort),
+        this.formatNumber(aggregate.avg_ice_score),
         aggregate.score_count.toString(),
-        aggregate.impact_stddev?.toFixed(2) || '',
-        aggregate.confidence_stddev?.toFixed(2) || '',
-        aggregate.effort_stddev?.toFixed(2) || '',
-        aggregate.ice_stddev?.toFixed(2) || '',
+        this.formatNumber(aggregate.impact_stddev),
+        this.formatNumber(aggregate.confidence_stddev),
+        this.formatNumber(aggregate.effort_stddev),
+        this.formatNumber(aggregate.ice_stddev),
         aggregate.tier_name,
         aggregate.tier_priority,
       ];
@@ -277,12 +277,12 @@ export class IceSessionExport extends LitElement {
         rows.push([
           feature.name,
           score.scored_by,
-          score.impact.toFixed(2),
-          score.confidence.toFixed(2),
-          score.effort.toFixed(2),
-          score.ice_score.toFixed(2),
-          score.tier_name,
-          score.tier_priority,
+          this.formatNumber(score.impact),
+          this.formatNumber(score.confidence),
+          this.formatNumber(score.effort),
+          this.formatNumber(score.ice_score),
+          score.tier_name || '',
+          score.tier_priority || '',
           score.justification || '',
           new Date(score.created_at).toISOString(),
         ]);
@@ -330,20 +330,20 @@ export class IceSessionExport extends LitElement {
           feature.name,
           feature.description || '',
           score.scored_by,
-          score.impact.toFixed(2),
-          score.confidence.toFixed(2),
-          score.effort.toFixed(2),
-          score.ice_score.toFixed(2),
-          score.tier_name,
+          this.formatNumber(score.impact),
+          this.formatNumber(score.confidence),
+          this.formatNumber(score.effort),
+          this.formatNumber(score.ice_score),
+          score.tier_name || '',
           score.justification || '',
-          aggregate?.avg_impact.toFixed(2) || '',
-          aggregate?.avg_confidence.toFixed(2) || '',
-          aggregate?.avg_effort.toFixed(2) || '',
-          aggregate?.avg_ice_score.toFixed(2) || '',
-          aggregate?.impact_stddev?.toFixed(2) || '',
-          aggregate?.confidence_stddev?.toFixed(2) || '',
-          aggregate?.effort_stddev?.toFixed(2) || '',
-          aggregate?.ice_stddev?.toFixed(2) || '',
+          this.formatNumber(aggregate?.avg_impact),
+          this.formatNumber(aggregate?.avg_confidence),
+          this.formatNumber(aggregate?.avg_effort),
+          this.formatNumber(aggregate?.avg_ice_score),
+          this.formatNumber(aggregate?.impact_stddev),
+          this.formatNumber(aggregate?.confidence_stddev),
+          this.formatNumber(aggregate?.effort_stddev),
+          this.formatNumber(aggregate?.ice_stddev),
           aggregate?.score_count.toString() || '0',
           aggregate?.tier_name || '',
           new Date(score.created_at).toISOString(),
@@ -353,6 +353,10 @@ export class IceSessionExport extends LitElement {
 
     this.downloadCSV(headers, rows, `${this.session.name}_complete_report.csv`);
     appStore.showToast('Complete report exported!', 'success');
+  }
+
+  private formatNumber(value?: number | null, digits = 2) {
+    return typeof value === 'number' ? value.toFixed(digits) : '';
   }
 
   private downloadCSV(headers: string[], rows: string[][], filename: string) {

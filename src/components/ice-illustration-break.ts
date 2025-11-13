@@ -14,42 +14,49 @@ export class IceIllustrationBreak extends LitElement {
     }
 
     .break-container {
+      display: grid;
+      grid-template-columns: minmax(220px, 320px) 1fr;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .copy {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 2rem;
-      text-align: center;
+      gap: 0.75rem;
     }
 
     h2 {
-      font-size: 2rem;
+      font-size: 1.75rem;
       font-weight: 700;
       color: #1f2937;
       margin: 0;
     }
 
     .description {
-      font-size: 1.125rem;
+      font-size: 1rem;
       color: #6b7280;
-      max-width: 500px;
-      line-height: 1.6;
+      line-height: 1.5;
+      margin: 0;
     }
 
     .step-indicator {
       background: #eff6ff;
       color: #3b82f6;
-      padding: 0.5rem 1rem;
-      border-radius: 1rem;
+      padding: 0.35rem 0.9rem;
+      border-radius: 999px;
       font-weight: 600;
-      font-size: 0.875rem;
+      font-size: 0.8rem;
+      display: inline-flex;
+      width: fit-content;
     }
 
     .button-group {
       display: flex;
-      gap: 1rem;
-      margin-top: 1rem;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
     }
 
     button {
@@ -77,7 +84,7 @@ export class IceIllustrationBreak extends LitElement {
     .btn-secondary {
       background: white;
       color: #3b82f6;
-      border: 2px solid #3b82f6;
+      border: 1px solid #3b82f6;
     }
 
     .btn-secondary:hover {
@@ -88,6 +95,30 @@ export class IceIllustrationBreak extends LitElement {
       outline: 2px solid #3b82f6;
       outline-offset: 2px;
     }
+
+    @media (max-width: 768px) {
+      .break-container {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+
+      .copy {
+        align-items: center;
+      }
+
+      .step-indicator {
+        margin: 0 auto;
+      }
+
+      .button-group {
+        max-width: none;
+        flex-direction: column;
+      }
+
+      .button-group button {
+        width: 100%;
+      }
+    }
   `;
 
   render() {
@@ -95,21 +126,20 @@ export class IceIllustrationBreak extends LitElement {
 
     return html`
       <div class="break-container">
-        <ice-illustration type=${this.section} width="400" height="300"></ice-illustration>
+        <ice-illustration type=${this.section} width="320" height="240"></ice-illustration>
 
-        <div class="step-indicator">${content.step}</div>
-
-        <h2>${content.title}</h2>
-
-        <p class="description">${content.description}</p>
-
-        <div class="button-group">
-          <button class="btn-secondary" @click=${this.handleBack}>
-            Back
-          </button>
-          <button class="btn-primary" @click=${this.handleContinue}>
-            Continue
-          </button>
+        <div class="copy">
+          <div class="step-indicator">${content.step}</div>
+          <h2>${content.title}</h2>
+          <p class="description">${content.description}</p>
+          <div class="button-group">
+            <button class="btn-secondary" @click=${this.handleBack}>
+              Back
+            </button>
+            <button class="btn-primary" @click=${this.handleContinue}>
+              Continue
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -142,19 +172,18 @@ export class IceIllustrationBreak extends LitElement {
   }
 
   private handleBack() {
-    let prevStep: AppStep;
-    switch (this.section) {
-      case 'impact':
-        prevStep = 'feature-input';
-        break;
-      case 'confidence':
-        prevStep = 'impact-questions';
-        break;
-      case 'effort':
-        prevStep = 'confidence-questions';
-        break;
+    if (this.section === 'impact') {
+      appStore.setStep(this.getStartingStep());
+      return;
     }
-    appStore.setStep(prevStep);
+
+    const previousSection = appStore.getPreviousActiveSection(this.section);
+    if (!previousSection) {
+      appStore.setStep(this.getStartingStep());
+      return;
+    }
+
+    appStore.setStep(`${previousSection}-questions` as AppStep);
   }
 
   private handleContinue() {
@@ -171,6 +200,16 @@ export class IceIllustrationBreak extends LitElement {
         break;
     }
     appStore.setStep(nextStep);
+}
+
+  private getStartingStep(): AppStep {
+    if (appStore.isSessionScoring()) {
+      return 'session-dashboard';
+    }
+    if (appStore.isBatchScoring()) {
+      return 'batch-list';
+    }
+    return 'feature-input';
   }
 }
 

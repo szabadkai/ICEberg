@@ -13,24 +13,23 @@ export class IceJustificationInput extends LitElement {
     }
 
     .justification-container {
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
+      display: grid;
+      grid-template-columns: minmax(220px, 320px) 1fr;
+      gap: 1.5rem;
+      align-items: start;
     }
 
     h2 {
-      font-size: 2rem;
+      font-size: 1.75rem;
       font-weight: 700;
       color: #1f2937;
-      margin: 0;
-      text-align: center;
+      margin: 0 0 0.5rem 0;
     }
 
     .prompt {
-      text-align: center;
       color: #6b7280;
-      font-size: 1.125rem;
-      line-height: 1.6;
+      font-size: 1rem;
+      line-height: 1.4;
     }
 
     .score-badge {
@@ -57,7 +56,7 @@ export class IceJustificationInput extends LitElement {
     .form-group {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
+      gap: 0.4rem;
     }
 
     label {
@@ -103,8 +102,8 @@ export class IceJustificationInput extends LitElement {
 
     .button-group {
       display: flex;
-      gap: 1rem;
-      margin-top: 1rem;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
     }
 
     button {
@@ -148,6 +147,22 @@ export class IceJustificationInput extends LitElement {
       outline: 2px solid #3b82f6;
       outline-offset: 2px;
     }
+
+    @media (max-width: 768px) {
+      .justification-container {
+        grid-template-columns: 1fr;
+      }
+
+      h2,
+      .prompt,
+      .score-badge {
+        text-align: center;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+    }
   `;
 
   connectedCallback() {
@@ -173,7 +188,7 @@ export class IceJustificationInput extends LitElement {
 
     return html`
       <div class="justification-container">
-        <div style="text-align: center;">
+        <div>
           <h2>Justification Required</h2>
           <div class="score-badge ${isHighScore ? 'high' : isLowScore ? 'low' : ''}">
             ICE Score: ${score.toFixed(2)}
@@ -181,23 +196,24 @@ export class IceJustificationInput extends LitElement {
           <p class="prompt">${prompt}</p>
         </div>
 
-        <div class="form-group">
-          <label for="justification">Your Justification</label>
-          <textarea
-            id="justification"
-            .value=${this.justification}
-            @input=${this.handleInput}
-            placeholder="Provide a detailed explanation..."
-            maxlength="500"
-            class=${this.error ? 'error' : ''}
-            aria-required="true"
-            aria-invalid=${this.error ? 'true' : 'false'}
-            aria-describedby="char-count justification-error"
-          ></textarea>
+        <div>
+          <div class="form-group">
+            <label for="justification">Your Justification</label>
+            <textarea
+              id="justification"
+              .value=${this.justification}
+              @input=${this.handleInput}
+              placeholder="Provide a detailed explanation..."
+              maxlength="500"
+              class=${this.error ? 'error' : ''}
+              aria-required="true"
+              aria-invalid=${this.error ? 'true' : 'false'}
+              aria-describedby="char-count justification-error"
+            ></textarea>
 
-          <div id="char-count" class="char-count ${charCount < 20 || charCount > 500 ? 'error' : ''}">
-            ${charCount} / 500 characters (minimum 20)
-          </div>
+            <div id="char-count" class="char-count ${charCount < 20 || charCount > 500 ? 'error' : ''}">
+              ${charCount} / 500 characters (minimum 20)
+            </div>
 
           ${this.error ? html`<span id="justification-error" class="error-message">${this.error}</span>` : ''}
         </div>

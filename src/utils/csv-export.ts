@@ -2,18 +2,20 @@ import Papa from 'papaparse';
 import { ScoreResult } from '../types';
 
 export function exportToCSV(scores: ScoreResult[]): void {
-  const data = scores.map((score) => ({
-    'Feature Name': score.featureName,
-    Impact: score.impact.toFixed(2),
-    Confidence: score.confidence.toFixed(2),
-    Effort: score.effort.toFixed(2),
-    'ICE Score': score.iceScore.toFixed(2),
-    'Priority Tier': score.tier.priority,
-    Justification: score.justification || '',
-    'Scored By': score.scoredBy,
-    Date: score.date,
-    Time: score.time,
-  }));
+  const data = scores
+    .filter((score) => score.iceScore !== null && score.tier)
+    .map((score) => ({
+      'Feature Name': score.featureName,
+      Impact: score.impact.toFixed(2),
+      Confidence: score.confidence.toFixed(2),
+      Effort: score.effort.toFixed(2),
+      'ICE Score': score.iceScore!.toFixed(2),
+      'Priority Tier': score.tier!.priority,
+      Justification: score.justification || '',
+      'Scored By': score.scoredBy,
+      Date: score.date,
+      Time: score.time,
+    }));
 
   const csv = Papa.unparse(data, {
     quotes: true,

@@ -1,0 +1,6 @@
+name,description
+"Dark Mode Toggle","Add dark theme option to settings for better user experience at night"
+"Export to PDF","Allow users to export reports and dashboards as PDF files"
+"Social Media Login","Enable login via Google, Facebook, and Apple accounts"
+"Two-Factor Authentication","Add 2FA for enhanced account security"
+"Mobile App Push Notifications","Send real-time notifications to mobile users"

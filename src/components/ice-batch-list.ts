@@ -7,7 +7,6 @@ import { FeatureToScore } from '../types';
 export class IceBatchList extends LitElement {
   @state() private features: FeatureToScore[] = [];
   @state() private currentIndex = 0;
-  @state() private scoredBy = 'PM';
 
   static styles = css`
     :host {
@@ -203,7 +202,6 @@ export class IceBatchList extends LitElement {
     if (state.batchScoring) {
       this.features = state.batchScoring.features;
       this.currentIndex = state.batchScoring.currentFeatureIndex;
-      this.scoredBy = state.batchScoring.scoredBy;
     }
   }
 

@@ -1,7 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { appStore } from '../store/store';
-import { buttonStyles, formStyles } from './shared-styles';
 
 @customElement('ice-feature-input')
 export class IceFeatureInput extends LitElement {
@@ -17,27 +16,33 @@ export class IceFeatureInput extends LitElement {
     .input-container {
       display: flex;
       flex-direction: column;
-      gap: 2rem;
+      gap: 1.5rem;
     }
 
     h2 {
-      font-size: 2rem;
+      font-size: 1.75rem;
       font-weight: 700;
       color: #1f2937;
-      margin: 0 0 0.5rem 0;
+      margin: 0 0 0.25rem 0;
       text-align: center;
     }
 
     .subtitle {
       text-align: center;
       color: #6b7280;
-      margin-bottom: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
     }
 
     .form-group {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
+      gap: 0.4rem;
     }
 
     label {
@@ -81,8 +86,8 @@ export class IceFeatureInput extends LitElement {
 
     .button-group {
       display: flex;
-      gap: 1rem;
-      margin-top: 2rem;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
     }
 
     button {
@@ -115,7 +120,7 @@ export class IceFeatureInput extends LitElement {
     .btn-secondary {
       background: white;
       color: #3b82f6;
-      border: 2px solid #3b82f6;
+      border: 1px solid #bfdbfe;
     }
 
     .btn-secondary:hover {
@@ -125,6 +130,18 @@ export class IceFeatureInput extends LitElement {
     button:focus {
       outline: 2px solid #3b82f6;
       outline-offset: 2px;
+    }
+
+    @media (max-width: 768px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .button-group {
+        flex-direction: column;
+      }
     }
   `;
 
@@ -143,38 +160,40 @@ export class IceFeatureInput extends LitElement {
           <p class="subtitle">Tell us about the feature you want to score</p>
         </div>
 
-        <div class="form-group">
-          <label for="feature-name">
-            Feature Name <span class="required">*</span>
-          </label>
-          <input
-            id="feature-name"
-            type="text"
-            .value=${this.featureName}
-            @input=${this.handleFeatureNameInput}
-            placeholder="e.g., One-click checkout for returning customers"
-            maxlength="100"
-            class=${this.errors.featureName ? 'error' : ''}
-            aria-required="true"
-            aria-invalid=${this.errors.featureName ? 'true' : 'false'}
-            aria-describedby=${this.errors.featureName ? 'feature-name-error' : 'feature-name-help'}
-          />
-          ${this.errors.featureName
-            ? html`<span id="feature-name-error" class="error-message">${this.errors.featureName}</span>`
-            : html`<span id="feature-name-help" class="help-text">Maximum 100 characters</span>`}
-        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="feature-name">
+              Feature Name <span class="required">*</span>
+            </label>
+            <input
+              id="feature-name"
+              type="text"
+              .value=${this.featureName}
+              @input=${this.handleFeatureNameInput}
+              placeholder="e.g., One-click checkout for returning customers"
+              maxlength="100"
+              class=${this.errors.featureName ? 'error' : ''}
+              aria-required="true"
+              aria-invalid=${this.errors.featureName ? 'true' : 'false'}
+              aria-describedby=${this.errors.featureName ? 'feature-name-error' : 'feature-name-help'}
+            />
+            ${this.errors.featureName
+              ? html`<span id="feature-name-error" class="error-message">${this.errors.featureName}</span>`
+              : html`<span id="feature-name-help" class="help-text">Maximum 100 characters</span>`}
+          </div>
 
-        <div class="form-group">
-          <label for="scored-by">Scored By (Optional)</label>
-          <input
-            id="scored-by"
-            type="text"
-            .value=${this.scoredBy}
-            @input=${this.handleScoredByInput}
-            placeholder="PM"
-            maxlength="50"
-          />
-          <span class="help-text">Who is scoring this feature?</span>
+          <div class="form-group">
+            <label for="scored-by">Scored By (Optional)</label>
+            <input
+              id="scored-by"
+              type="text"
+              .value=${this.scoredBy}
+              @input=${this.handleScoredByInput}
+              placeholder="PM"
+              maxlength="50"
+            />
+            <span class="help-text">Who is scoring this feature?</span>
+          </div>
         </div>
 
         <div class="button-group">
@@ -228,7 +247,7 @@ export class IceFeatureInput extends LitElement {
   private handleNext() {
     if (this.validateFeatureName() && this.isValid()) {
       appStore.setFeatureInfo(this.featureName.trim(), this.scoredBy.trim());
-      appStore.setStep('impact-intro');
+      appStore.startScoringFlow('impact');
     }
   }
 }

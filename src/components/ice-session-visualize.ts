@@ -1,7 +1,24 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { appStore } from '../store/store';
-import { SessionWithDetails, SessionFeature, SessionAggregate } from '../types';
+import { SessionAggregate, SessionFeature, SessionScore, SessionWithDetails } from '../types';
+
+interface FeatureInsight {
+  feature: SessionFeature;
+  aggregate: SessionAggregate;
+  scores: SessionScore[];
+  stddev: number;
+  minIce?: number;
+  maxIce?: number;
+}
+
+interface InsightCallout {
+  pill: string;
+  tone: 'positive' | 'warning' | 'danger' | 'neutral';
+  title: string;
+  body: string;
+  meta?: string;
+}
 
 @customElement('ice-session-visualize')
 export class IceSessionVisualize extends LitElement {
@@ -25,8 +42,13 @@ export class IceSessionVisualize extends LitElement {
 
     .charts-grid {
       display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
       gap: 2rem;
       margin-bottom: 2rem;
+    }
+
+    .chart-card.full-width {
+      grid-column: 1 / -1;
     }
 
     .chart-card {
@@ -125,6 +147,164 @@ export class IceSessionVisualize extends LitElement {
       background: #e0f2fe;
       color: #0c4a6e;
       font-weight: 600;
+    }
+
+    .alignment-table {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .alignment-row {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) minmax(140px, 2fr) auto auto;
+      gap: 1rem;
+      align-items: center;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .alignment-row:last-child {
+      border-bottom: none;
+    }
+
+    .alignment-name {
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .alignment-meter {
+      width: 100%;
+      height: 12px;
+      background: #f3f4f6;
+      border-radius: 999px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .alignment-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    .alignment-state {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      letter-spacing: 0.02em;
+    }
+
+    .alignment-state.positive {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .alignment-state.warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .alignment-state.danger {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .alignment-state.neutral {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .alignment-meta {
+      font-size: 0.85rem;
+      color: #4b5563;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.15rem;
+    }
+
+    .alignment-meta span {
+      white-space: nowrap;
+    }
+
+    .alignment-range {
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+
+    .insights-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .insight-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #e5e7eb;
+      align-items: flex-start;
+    }
+
+    .insight-item:last-child {
+      border-bottom: none;
+    }
+
+    .insight-pill {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.375rem;
+      letter-spacing: 0.04em;
+    }
+
+    .insight-pill.positive {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+
+    .insight-pill.warning {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .insight-pill.danger {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .insight-pill.neutral {
+      background: #e5e7eb;
+      color: #4b5563;
+    }
+
+    .insight-title {
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.15rem;
+    }
+
+    .insight-body {
+      font-size: 0.9rem;
+      color: #4b5563;
+    }
+
+    .insights-empty {
+      padding: 0.5rem 0;
+      color: #6b7280;
+      font-size: 0.95rem;
+    }
+
+    .insight-meta {
+      font-size: 0.8rem;
+      color: #6b7280;
+      text-align: right;
+      white-space: nowrap;
     }
 
     .variance-chart {
@@ -277,6 +457,22 @@ export class IceSessionVisualize extends LitElement {
       .action-buttons {
         flex-direction: column;
       }
+
+      .alignment-row {
+        grid-template-columns: 1fr;
+      }
+
+      .alignment-meta {
+        align-items: flex-start;
+      }
+
+      .insight-item {
+        grid-template-columns: 1fr;
+      }
+
+      .insight-meta {
+        text-align: left;
+      }
     }
   `;
 
@@ -319,9 +515,11 @@ export class IceSessionVisualize extends LitElement {
       ${this.renderStatsOverview()}
 
       <div class="charts-grid">
+        ${this.renderInsightCallouts()}
+        ${this.renderAlignmentMatrix()}
+        ${this.renderVarianceChart()}
         ${this.renderIceScoreChart()}
         ${this.renderComponentsComparison()}
-        ${this.renderVarianceChart()}
         ${this.renderTierDistribution()}
       </div>
 
@@ -363,25 +561,110 @@ export class IceSessionVisualize extends LitElement {
     `;
   }
 
+  private renderInsightCallouts() {
+    const insights = this.buildInsights();
+
+    if (!this.session || this.session.features.length === 0) {
+      return this.renderInsightsEmptyState('Add features to this session to surface team-wide patterns.');
+    }
+
+    if (!insights.length) {
+      return this.renderInsightsEmptyState('Need more completed scores before we can highlight patterns.');
+    }
+
+    return html`
+      <div class="chart-card full-width insights-card">
+        <h3 class="chart-title">Patterns Worth a PM's Attention</h3>
+        <div class="insights-list">
+          ${insights.map(
+            insight => html`
+              <div class="insight-item">
+                <span class="insight-pill ${insight.tone}">${insight.pill}</span>
+                <div>
+                  <div class="insight-title">${insight.title}</div>
+                  <div class="insight-body">${insight.body}</div>
+                </div>
+                <div class="insight-meta">${insight.meta ?? ''}</div>
+              </div>
+            `
+          )}
+        </div>
+      </div>
+    `;
+  }
+
+  private renderInsightsEmptyState(message: string) {
+    return html`
+      <div class="chart-card full-width insights-card">
+        <h3 class="chart-title">Patterns Worth a PM's Attention</h3>
+        <p class="insights-empty">${message}</p>
+      </div>
+    `;
+  }
+
+  private renderAlignmentMatrix() {
+    const featureInsights = this.getFeatureInsights();
+    if (!featureInsights.length) {
+      return html`
+        <div class="chart-card full-width">
+          <h3 class="chart-title">Alignment Radar</h3>
+          <p class="insights-empty">Add at least two scores per feature to compare alignment.</p>
+        </div>
+      `;
+    }
+
+    const sorted = featureInsights
+      .slice()
+      .sort((a, b) => (b.stddev || 0) - (a.stddev || 0));
+    const maxStdDev = Math.max(...sorted.map(item => item.stddev || 0), 1);
+
+    return html`
+      <div class="chart-card full-width">
+        <h3 class="chart-title">Alignment Radar</h3>
+        <div class="alignment-table">
+          ${sorted.map(item => {
+            const consensus = this.getConsensusMeta(item.stddev, item.aggregate, item.aggregate.score_count);
+            const width = Math.max(6, (item.stddev / maxStdDev) * 100);
+            return html`
+              <div class="alignment-row">
+                <div class="alignment-name">${item.feature.name}</div>
+                <div class="alignment-meter">
+                  <div
+                    class="alignment-fill"
+                    style="width: ${item.aggregate.score_count < 2 ? 8 : width}%; background: ${consensus.color};"
+                  ></div>
+                </div>
+                <span class="alignment-state ${consensus.tone}">${consensus.label}</span>
+                <div class="alignment-meta">
+                  <span>Avg ICE: ${this.formatAggregateValue(item.aggregate.avg_ice_score, 0)}</span>
+                  <span>±${item.stddev.toFixed(0)} · ${item.aggregate.score_count} scores</span>
+                  ${item.minIce !== undefined && item.maxIce !== undefined
+                    ? html`<span class="alignment-range">${item.minIce.toFixed(0)} – ${item.maxIce.toFixed(0)}</span>`
+                    : ''}
+                </div>
+              </div>
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  }
+
   private renderIceScoreChart() {
-    if (!this.session) return '';
+    const featureInsights = this.getFeatureInsights().sort(
+      (a, b) => (b.aggregate.avg_ice_score || 0) - (a.aggregate.avg_ice_score || 0)
+    );
 
-    const featuresWithScores = this.session.features
-      .map(feature => {
-        const aggregate = this.session!.aggregates.find(a => a.feature_id === feature.id);
-        return { feature, aggregate };
-      })
-      .filter(item => item.aggregate)
-      .sort((a, b) => (b.aggregate?.avg_ice_score || 0) - (a.aggregate?.avg_ice_score || 0));
+    if (!featureInsights.length) return '';
 
-    const maxScore = Math.max(...featuresWithScores.map(item => item.aggregate?.avg_ice_score || 0), 1);
+    const maxScore = Math.max(...featureInsights.map(item => item.aggregate.avg_ice_score || 0), 1);
 
     return html`
       <div class="chart-card">
         <h3 class="chart-title">Average ICE Scores by Feature</h3>
         <div class="bar-chart">
-          ${featuresWithScores.map(({ feature, aggregate }) => {
-            const score = aggregate?.avg_ice_score || 0;
+          ${featureInsights.map(({ feature, aggregate }) => {
+            const score = aggregate.avg_ice_score || 0;
             const percentage = (score / maxScore) * 100;
             return html`
               <div class="bar-item">
@@ -401,28 +684,22 @@ export class IceSessionVisualize extends LitElement {
   }
 
   private renderComponentsComparison() {
-    if (!this.session) return '';
-
-    const featuresWithScores = this.session.features
-      .map(feature => {
-        const aggregate = this.session!.aggregates.find(a => a.feature_id === feature.id);
-        return { feature, aggregate };
-      })
-      .filter(item => item.aggregate);
+    const featureInsights = this.getFeatureInsights();
+    if (!featureInsights.length) return '';
 
     return html`
       <div class="chart-card">
         <h3 class="chart-title">Score Components Breakdown</h3>
         <div class="scatter-plot">
-          ${featuresWithScores.map(({ feature, aggregate }) => {
-            const tierColor = this.getTierColor(aggregate?.tier_name || '');
+          ${featureInsights.map(({ feature, aggregate }) => {
+            const tierColor = this.getTierColor(aggregate.tier_name || '');
             return html`
               <div class="scatter-item" style="border-color: ${tierColor}">
                 <div class="scatter-name">${feature.name}</div>
                 <div class="scatter-metrics">
-                  <div class="metric-badge">I: ${aggregate?.avg_impact.toFixed(1)}</div>
-                  <div class="metric-badge">C: ${aggregate?.avg_confidence.toFixed(1)}</div>
-                  <div class="metric-badge">E: ${aggregate?.avg_effort.toFixed(1)}</div>
+                  <div class="metric-badge">I: ${this.formatAggregateValue(aggregate.avg_impact)}</div>
+                  <div class="metric-badge">C: ${this.formatAggregateValue(aggregate.avg_confidence)}</div>
+                  <div class="metric-badge">E: ${this.formatAggregateValue(aggregate.avg_effort)}</div>
                 </div>
               </div>
             `;
@@ -433,15 +710,9 @@ export class IceSessionVisualize extends LitElement {
   }
 
   private renderVarianceChart() {
-    if (!this.session) return '';
-
-    const featuresWithVariance = this.session.features
-      .map(feature => {
-        const aggregate = this.session!.aggregates.find(a => a.feature_id === feature.id);
-        return { feature, aggregate };
-      })
-      .filter(item => item.aggregate && item.aggregate.score_count > 1)
-      .sort((a, b) => (b.aggregate?.ice_stddev || 0) - (a.aggregate?.ice_stddev || 0));
+    const featuresWithVariance = this.getFeatureInsights()
+      .filter(item => item.aggregate.score_count > 1)
+      .sort((a, b) => (b.stddev || 0) - (a.stddev || 0));
 
     if (featuresWithVariance.length === 0) {
       return html`
@@ -454,14 +725,13 @@ export class IceSessionVisualize extends LitElement {
       `;
     }
 
-    const maxStdDev = Math.max(...featuresWithVariance.map(item => item.aggregate?.ice_stddev || 0), 1);
+    const maxStdDev = Math.max(...featuresWithVariance.map(item => item.stddev || 0), 1);
 
     return html`
       <div class="chart-card">
         <h3 class="chart-title">Team Disagreement Analysis (Standard Deviation)</h3>
         <div class="variance-chart">
-          ${featuresWithVariance.map(({ feature, aggregate }) => {
-            const stddev = aggregate?.ice_stddev || 0;
+          ${featuresWithVariance.map(({ feature, stddev }) => {
             const percentage = (stddev / maxStdDev) * 100;
 
             let label = 'Low';
@@ -533,6 +803,168 @@ export class IceSessionVisualize extends LitElement {
     `;
   }
 
+  private getFeatureInsights(): FeatureInsight[] {
+    if (!this.session) return [];
+
+    return this.session.features.reduce<FeatureInsight[]>((acc, feature) => {
+      const aggregate = this.session!.aggregates.find(a => a.feature_id === feature.id);
+      if (!aggregate) {
+        return acc;
+      }
+
+      const scores = this.session!.scores.filter(score => score.feature_id === feature.id);
+      const iceValues = scores
+        .map(score => score.ice_score)
+        .filter((value): value is number => typeof value === 'number');
+
+      acc.push({
+        feature,
+        aggregate,
+        scores,
+        stddev: aggregate.ice_stddev || 0,
+        minIce: iceValues.length ? Math.min(...iceValues) : undefined,
+        maxIce: iceValues.length ? Math.max(...iceValues) : undefined,
+      });
+
+      return acc;
+    }, []);
+  }
+
+  private getConsensusMeta(stddev: number, aggregate?: SessionAggregate, scoreCount = 0) {
+    if (scoreCount < 2 || stddev === 0) {
+      return { label: 'Need more data', tone: 'neutral', color: '#9ca3af' } as const;
+    }
+
+    const avg = aggregate?.avg_ice_score || 0;
+    const relative = avg > 0 ? (stddev / avg) * 100 : 0;
+
+    if ((avg > 0 && relative <= 18) || stddev <= 60) {
+      return { label: 'In Unison', tone: 'positive', color: '#10b981' } as const;
+    }
+
+    if ((avg > 0 && relative <= 35) || stddev <= 120) {
+      return { label: 'Split View', tone: 'warning', color: '#f59e0b' } as const;
+    }
+
+    return { label: 'In Conflict', tone: 'danger', color: '#ef4444' } as const;
+  }
+
+  private buildInsights(): InsightCallout[] {
+    if (!this.session) return [];
+
+    const featureInsights = this.getFeatureInsights();
+    if (!featureInsights.length) return [];
+
+    const insights: InsightCallout[] = [];
+    const contested = featureInsights
+      .filter(item => item.aggregate.score_count > 1)
+      .sort((a, b) => (b.stddev || 0) - (a.stddev || 0));
+
+    const highConflict = contested.find(item => item.stddev > 80);
+    if (highConflict) {
+      insights.push({
+        pill: 'High conflict',
+        tone: 'danger',
+        title: highConflict.feature.name,
+        body: `Scores swing ±${highConflict.stddev.toFixed(0)} (range ${this.formatIceRange(
+          highConflict.minIce,
+          highConflict.maxIce
+        )}) despite an average of ${this.formatAggregateValue(highConflict.aggregate.avg_ice_score, 0)}. Facilitate a sync before committing.`,
+        meta: `${highConflict.aggregate.score_count} scorers`,
+      });
+    }
+
+    const aligned = contested
+      .filter(item => item.stddev <= 50)
+      .sort((a, b) => (b.aggregate.avg_ice_score || 0) - (a.aggregate.avg_ice_score || 0));
+    if (aligned.length) {
+      const alignedFeature = aligned[0];
+      insights.push({
+        pill: 'In unison',
+        tone: 'positive',
+        title: alignedFeature.feature.name,
+        body: `Team agrees (±${alignedFeature.stddev.toFixed(0)}) it's a ${alignedFeature.aggregate.tier_name ||
+          'top pick'} at ${this.formatAggregateValue(alignedFeature.aggregate.avg_ice_score, 0)} pts. Consider fast-tracking.`,
+        meta: alignedFeature.aggregate.tier_name || '',
+      });
+    }
+
+    const uniqueScorers = this.getUniqueScorerCount();
+    const coverageGap = featureInsights
+      .filter(item => uniqueScorers > 0 && item.aggregate.score_count < uniqueScorers)
+      .sort((a, b) => (a.aggregate.score_count ?? 0) - (b.aggregate.score_count ?? 0))[0];
+    if (coverageGap) {
+      const missing = Math.max(0, uniqueScorers - (coverageGap.aggregate.score_count || 0));
+      insights.push({
+        pill: 'Coverage gap',
+        tone: 'warning',
+        title: coverageGap.feature.name,
+        body: `${missing} teammate${missing === 1 ? '' : 's'} still need to weigh in. Current view leans on ${
+          coverageGap.aggregate.score_count
+        } input${coverageGap.aggregate.score_count === 1 ? '' : 's'}.`,
+        meta: `${coverageGap.aggregate.score_count}/${uniqueScorers} scorers`,
+      });
+    }
+
+    if (insights.length < 3) {
+      const lopsided = featureInsights
+        .filter(item => {
+          const impact = item.aggregate.avg_impact ?? 0;
+          const effort = item.aggregate.avg_effort ?? 0;
+          return Math.abs(impact - effort) >= 3;
+        })
+        .sort((a, b) => {
+          const diffB = Math.abs((b.aggregate.avg_impact ?? 0) - (b.aggregate.avg_effort ?? 0));
+          const diffA = Math.abs((a.aggregate.avg_impact ?? 0) - (a.aggregate.avg_effort ?? 0));
+          return diffB - diffA;
+        });
+
+    if (lopsided.length) {
+      const feature = lopsided[0];
+      const impact = this.formatAggregateValue(feature.aggregate.avg_impact);
+      const effort = this.formatAggregateValue(feature.aggregate.avg_effort);
+      const leaning = (feature.aggregate.avg_impact ?? 0) > (feature.aggregate.avg_effort ?? 0)
+        ? 'quick-win candidate (impact outsizes effort)'
+        : 'heavy lift compared to the value scored';
+      insights.push({
+        pill: 'Pattern',
+        tone: 'neutral',
+        title: feature.feature.name,
+        body: `Impact ${impact} vs effort ${effort} makes this a ${leaning}. Double-check assumptions before handoff.`,
+        meta: `I ${impact} / E ${effort}`,
+      });
+    }
+  }
+
+    if (!insights.length && featureInsights.length) {
+      const lowestSpread = featureInsights
+        .filter(item => item.aggregate.score_count > 0)
+        .sort((a, b) => (a.stddev || 0) - (b.stddev || 0))[0];
+
+      if (lowestSpread) {
+        insights.push({
+          pill: 'Aligned',
+          tone: 'positive',
+          title: `Team aligned on ${lowestSpread.feature.name}`,
+          body: `Everyone lands within ±${Math.round(lowestSpread.stddev || 0)} of the average. Consider moving this forward while consensus is high.`,
+          meta: `${lowestSpread.aggregate.score_count} scorers`,
+        });
+      }
+    }
+
+    return insights.slice(0, 4);
+  }
+
+  private getUniqueScorerCount() {
+    if (!this.session) return 0;
+    return new Set(this.session.scores.map(score => score.scored_by)).size;
+  }
+
+  private formatIceRange(min?: number, max?: number) {
+    if (min === undefined || max === undefined) return 'n/a';
+    return `${min.toFixed(0)} – ${max.toFixed(0)}`;
+  }
+
   private getTierColor(tierName: string): string {
     const colors: Record<string, string> = {
       'Low Priority': '#9ca3af',
@@ -542,6 +974,10 @@ export class IceSessionVisualize extends LitElement {
       'Top Priority': '#ef4444',
     };
     return colors[tierName] || '#9ca3af';
+  }
+
+  private formatAggregateValue(value?: number | null, digits = 1) {
+    return typeof value === 'number' ? value.toFixed(digits) : '—';
   }
 
   private handleBack() {

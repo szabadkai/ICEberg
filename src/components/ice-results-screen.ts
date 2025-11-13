@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { appStore } from '../store/store';
-import { ScoreResult } from '../types';
+import { ScoreResult, SectionKey, SessionWithDetails, SessionFeature } from '../types';
 import './ice-illustration';
 
 @customElement('ice-results-screen')
@@ -14,22 +14,28 @@ export class IceResultsScreen extends LitElement {
     }
 
     .results-container {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    .results-primary,
+    .results-secondary {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 2rem;
-      text-align: center;
+      gap: 1rem;
     }
 
     h2 {
-      font-size: 2rem;
+      font-size: 1.75rem;
       font-weight: 700;
       color: #1f2937;
       margin: 0;
     }
 
     .feature-name {
-      font-size: 1.25rem;
+      font-size: 1rem;
       color: #6b7280;
       font-weight: 500;
     }
@@ -37,10 +43,9 @@ export class IceResultsScreen extends LitElement {
     .ice-score-display {
       background: #3b82f6;
       color: white;
-      padding: 2rem;
-      border-radius: 8px;
+      padding: 1.5rem;
+      border-radius: 12px;
       width: 100%;
-      max-width: 400px;
     }
 
     .ice-score-label {
@@ -57,13 +62,20 @@ export class IceResultsScreen extends LitElement {
       line-height: 1;
     }
 
+    .ice-score-value.muted {
+      color: #94a3b8;
+    }
+
+    .ice-score-hint {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: #e0e7ff;
+    }
+
     .breakdown {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-      width: 100%;
-      max-width: 500px;
-      margin-top: 1rem;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
     }
 
     .breakdown-item {
@@ -87,13 +99,28 @@ export class IceResultsScreen extends LitElement {
       color: #1f2937;
     }
 
+    .skipped-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #9333ea;
+    }
+
     .tier-card {
       width: 100%;
-      max-width: 500px;
-      padding: 2rem;
+      padding: 1.5rem;
       border-radius: 1rem;
-      border: 3px solid;
+      border: 2px solid;
       background: white;
+    }
+
+    .tier-placeholder {
+      width: 100%;
+      padding: 1.5rem;
+      border-radius: 1rem;
+      border: 1px dashed #c4b5fd;
+      background: #faf5ff;
+      color: #6b21a8;
+      text-align: center;
     }
 
     .tier-name {
@@ -132,11 +159,10 @@ export class IceResultsScreen extends LitElement {
 
     .justification-display {
       width: 100%;
-      max-width: 500px;
       background: #f9fafb;
-      padding: 1.5rem;
+      padding: 1.25rem;
       border-radius: 0.75rem;
-      border: 2px solid #e5e7eb;
+      border: 1px solid #e5e7eb;
       text-align: left;
     }
 
@@ -153,11 +179,9 @@ export class IceResultsScreen extends LitElement {
 
     .button-group {
       display: flex;
-      flex-direction: column;
-      gap: 1rem;
+      gap: 0.75rem;
       width: 100%;
-      max-width: 400px;
-      margin-top: 1rem;
+      margin-top: 0.5rem;
     }
 
     button {
@@ -182,7 +206,7 @@ export class IceResultsScreen extends LitElement {
     .btn-secondary {
       background: white;
       color: #3b82f6;
-      border: 2px solid #3b82f6;
+      border: 1px solid #3b82f6;
     }
 
     .btn-secondary:hover {
@@ -204,6 +228,16 @@ export class IceResultsScreen extends LitElement {
     button:focus {
       outline: 2px solid #3b82f6;
       outline-offset: 2px;
+    }
+
+    @media (max-width: 900px) {
+      .results-container {
+        grid-template-columns: 1fr;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
     }
 
     @media (max-width: 640px) {
@@ -228,110 +262,133 @@ export class IceResultsScreen extends LitElement {
       return html`<div>No score available</div>`;
     }
 
-    const tierColor = this.score.tier.color;
+    const tierColor = this.score.tier?.color || '#e5e7eb';
+    const isBatch = appStore.isBatchScoring();
+    const isSession = this.isSessionScoring();
+    const primaryLabel = isSession
+      ? 'Save to Session'
+      : isBatch
+        ? 'Save & Continue to Next'
+        : 'Add to Export List';
 
     return html`
       <div class="results-container">
-        <h2>Your ICE Score</h2>
-        <p class="feature-name">${this.score.featureName}</p>
+        <div class="results-primary">
+          <div>
+            <h2>Your ICE Score</h2>
+            <p class="feature-name">${this.score.featureName}</p>
+          </div>
 
-        <div class="ice-score-display">
-          <div class="ice-score-label">Final ICE Score</div>
-          <div class="ice-score-value">${this.score.iceScore.toFixed(2)}</div>
+          <div class="ice-score-display">
+            <div class="ice-score-label">Final ICE Score</div>
+            ${this.score.iceScore !== null
+              ? html`<div class="ice-score-value">${this.score.iceScore.toFixed(2)}</div>`
+              : html`
+                  <div class="ice-score-value muted">—</div>
+                  <p class="ice-score-hint">
+                    Complete ${this.formatSkippedSections()} sections to see an ICE score.
+                  </p>
+                `}
+          </div>
+
+          <div class="breakdown">
+            <div class="breakdown-item">
+              <div class="breakdown-label">Impact</div>
+              <div class="breakdown-value">${this.renderSectionMetric('impact', this.score.impact)}</div>
+            </div>
+            <div class="breakdown-item">
+              <div class="breakdown-label">Confidence</div>
+              <div class="breakdown-value">${this.renderSectionMetric('confidence', this.score.confidence)}</div>
+            </div>
+            <div class="breakdown-item">
+              <div class="breakdown-label">Effort</div>
+              <div class="breakdown-value">${this.renderSectionMetric('effort', this.score.effort)}</div>
+            </div>
+          </div>
+
+          <div class="button-group">
+            <button class="btn-primary" @click=${this.handleSave}>
+              ${primaryLabel}
+            </button>
+            ${isBatch
+              ? html`
+                  <button class="btn-tertiary" @click=${this.handleBackToBatch}>
+                    Back to Batch List
+                  </button>
+                `
+              : isSession
+                ? html`
+                    <button class="btn-secondary" @click=${this.handleSaveAndScoreNext}>
+                      Save & Score Next Feature
+                    </button>
+                    <button class="btn-tertiary" @click=${this.handleBackToSession}>
+                      Back to Session Queue
+                    </button>
+                  `
+                : html`
+                    <button class="btn-secondary" @click=${this.handleScoreAnother}>
+                      Score Another Feature
+                    </button>
+                    <button class="btn-tertiary" @click=${this.handleViewExport}>
+                      View Export List (${appStore.getState().savedScores.length})
+                    </button>
+                  `}
+          </div>
         </div>
 
-        <div class="breakdown">
-          <div class="breakdown-item">
-            <div class="breakdown-label">Impact</div>
-            <div class="breakdown-value">${this.score.impact.toFixed(2)}</div>
-          </div>
-          <div class="breakdown-item">
-            <div class="breakdown-label">Confidence</div>
-            <div class="breakdown-value">${this.score.confidence.toFixed(2)}</div>
-          </div>
-          <div class="breakdown-item">
-            <div class="breakdown-label">Effort</div>
-            <div class="breakdown-value">${this.score.effort.toFixed(2)}</div>
-          </div>
-        </div>
-
-        <ice-illustration
-          type="${this.score.tier.illustration}"
-          width="300"
-          height="225"
-        ></ice-illustration>
-
-        <div class="tier-card" style="border-color: ${tierColor}">
-          <div class="tier-name" style="color: ${tierColor}">${this.score.tier.name}</div>
-          <div class="tier-priority" style="background: ${tierColor}; color: white;">
-            ${this.score.tier.priority} Priority
-          </div>
-          <div class="tier-description">${this.score.tier.description}</div>
-          <div class="tier-example" style="border-color: ${tierColor}">
-            <div class="tier-example-label">Example:</div>
-            <div>${this.score.tier.example}</div>
-          </div>
-        </div>
-
-        ${this.score.justification
-          ? html`
-              <div class="justification-display">
-                <div class="justification-label">Justification</div>
-                <div class="justification-text">${this.score.justification}</div>
-              </div>
-            `
-          : ''}
-
-        <div class="button-group">
-          <button class="btn-primary" @click=${this.handleSave}>
-            ${appStore.isBatchScoring() ? 'Save & Continue to Next' : 'Add to Export List'}
-          </button>
-          ${!appStore.isBatchScoring()
+        <div class="results-secondary">
+          ${this.score.tier
             ? html`
-                <button class="btn-secondary" @click=${this.handleScoreAnother}>
-                  Score Another Feature
-                </button>
-                <button class="btn-tertiary" @click=${this.handleViewExport}>
-                  View Export List (${appStore.getState().savedScores.length})
-                </button>
+                <ice-illustration
+                  type="${this.score.tier.illustration}"
+                  width="300"
+                  height="225"
+                ></ice-illustration>
+
+                <div class="tier-card" style="border-color: ${tierColor}">
+                  <div class="tier-name" style="color: ${tierColor}">${this.score.tier.name}</div>
+                  <div class="tier-priority" style="background: ${tierColor}; color: white;">
+                    ${this.score.tier.priority} Priority
+                  </div>
+                  <div class="tier-description">${this.score.tier.description}</div>
+                  <div class="tier-example" style="border-color: ${tierColor}">
+                    <div class="tier-example-label">Example:</div>
+                    <div>${this.score.tier.example}</div>
+                  </div>
+                </div>
               `
             : html`
-                <button class="btn-tertiary" @click=${this.handleBackToBatch}>
-                  Back to Batch List
-                </button>
+                <div class="tier-placeholder">
+                  <h3>Tier pending</h3>
+                  <p>
+                    Provide scores for ${this.formatSkippedSections()} to unlock the tier recommendation.
+                  </p>
+                </div>
               `}
+
+          ${this.score.justification
+            ? html`
+                <div class="justification-display">
+                  <div class="justification-label">Justification</div>
+                  <div class="justification-text">${this.score.justification}</div>
+                </div>
+              `
+            : ''}
         </div>
       </div>
     `;
   }
 
   private async handleSave() {
-    const state = appStore.getState();
-    const currentSession = state.currentSession;
-    const currentSessionFeature = state.currentSessionFeature;
-
-    // Check if we're in a session scoring context
-    if (currentSession && currentSessionFeature && this.score) {
-      // Save to session
-      const success = await appStore.saveSessionScore(
-        currentSession.id,
-        currentSessionFeature.id,
-        this.score.scoredBy,
-        this.score.impact,
-        this.score.confidence,
-        this.score.effort,
-        this.score.iceScore,
-        this.score.justification,
-        this.score.responses
-      );
-
-      if (success) {
-        // Reload session to get updated aggregates
-        await appStore.loadSessionWithDetails(currentSession.id);
-        // Navigate back to session dashboard
+    if (this.isSessionScoring()) {
+      const updatedSession = await this.persistSessionScore();
+      if (updatedSession) {
         appStore.setStep('session-dashboard');
       }
-    } else if (appStore.isBatchScoring()) {
+      return;
+    }
+
+    if (appStore.isBatchScoring()) {
       // In batch mode, complete the feature and move to next
       appStore.saveCurrentScore();
       appStore.completeBatchFeature();
@@ -352,6 +409,110 @@ export class IceResultsScreen extends LitElement {
 
   private handleBackToBatch() {
     appStore.setStep('batch-list');
+  }
+
+  private handleBackToSession() {
+    appStore.setStep('session-dashboard');
+  }
+
+  private isSessionScoring() {
+    const state = appStore.getState();
+    return !!(state.currentSession && state.currentSessionFeature && this.score);
+  }
+
+  private async persistSessionScore(): Promise<SessionWithDetails | null> {
+    const state = appStore.getState();
+    const currentSession = state.currentSession;
+    const currentSessionFeature = state.currentSessionFeature;
+
+    if (!currentSession || !currentSessionFeature || !this.score) {
+      return null;
+    }
+
+    const success = await appStore.saveSessionScore(
+      currentSession.id,
+      currentSessionFeature.id,
+      this.score.scoredBy,
+      this.score.impact,
+      this.score.confidence,
+      this.score.effort,
+      this.score.iceScore,
+      this.score.justification,
+      this.score.responses,
+      this.score.skippedSections ?? []
+    );
+
+    if (!success) {
+      return null;
+    }
+
+    return (await appStore.loadSessionWithDetails(currentSession.id)) || null;
+  }
+
+  private findNextSessionFeature(
+    session: SessionWithDetails,
+    scorer: string,
+    currentFeatureId?: string
+  ): SessionFeature | undefined {
+    const normalized = scorer.trim().toLowerCase();
+    const scoredFeatureIds = new Set(
+      session.scores
+        .filter(score => score.scored_by.trim().toLowerCase() === normalized)
+        .map(score => score.feature_id)
+    );
+
+    const pending = session.features.filter(feature => !scoredFeatureIds.has(feature.id));
+    if (pending.length === 0) {
+      return undefined;
+    }
+
+    if (currentFeatureId) {
+      const currentIndex = session.features.findIndex(feature => feature.id === currentFeatureId);
+      if (currentIndex >= 0) {
+        const afterCurrent = pending.find(feature => session.features.indexOf(feature) > currentIndex);
+        if (afterCurrent) {
+          return afterCurrent;
+        }
+      }
+    }
+
+    return pending[0];
+  }
+
+  private async handleSaveAndScoreNext() {
+    const updatedSession = await this.persistSessionScore();
+    if (!updatedSession || !this.score) {
+      return;
+    }
+
+    const state = appStore.getState();
+    const currentFeatureId = state.currentSessionFeature?.id;
+    const nextFeature = this.findNextSessionFeature(updatedSession, this.score.scoredBy, currentFeatureId);
+
+    if (nextFeature) {
+      appStore.setCurrentSessionFeature(nextFeature);
+      appStore.prepareFeatureForScoring(nextFeature.name, this.score.scoredBy);
+      appStore.startScoringFlow('impact');
+    } else {
+      appStore.showToast('All features in this session have your score. Returning to dashboard.', 'info', 5000);
+      appStore.setStep('session-dashboard');
+    }
+  }
+
+  private renderSectionMetric(section: SectionKey, value: number) {
+    if (this.score?.skippedSections?.includes(section)) {
+      return html`<span class="skipped-label">Skipped</span>`;
+    }
+    return value.toFixed(2);
+  }
+
+  private formatSkippedSections(): string {
+    if (!this.score?.skippedSections || this.score.skippedSections.length === 0) {
+      return 'the remaining';
+    }
+    return this.score.skippedSections
+      .map((section) => section.charAt(0).toUpperCase() + section.slice(1))
+      .join(', ');
   }
 }
 

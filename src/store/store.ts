@@ -1,10 +1,29 @@
-import { AppState, AppStep, ScoreResult, QuestionResponse, FeatureToScore, BatchScoring, Toast, ConfirmDialog, ScoringSession, SessionFeature } from '../types';
+import type {
+  AppState,
+  AppStep,
+  ScoreResult,
+  QuestionResponse,
+  FeatureToScore,
+  Toast,
+  ConfirmDialog,
+  ScoringSession,
+  SessionFeature,
+  SectionKey,
+  SectionPreferences,
+} from '../types';
 import { getTierForScore } from '../data/tiers';
 import { supabaseStore } from './supabase-store';
 import { sessionStore } from './session-store';
 
 const STORAGE_KEY = 'ice-scorecard-data';
+const SECTION_PREF_KEY_PREFIX = 'ice-session-section-prefs';
 const MAX_SAVED_SCORES = 100;
+const SECTION_ORDER: SectionKey[] = ['impact', 'confidence', 'effort'];
+const DEFAULT_SECTION_PREFERENCES: SectionPreferences = {
+  impact: true,
+  confidence: true,
+  effort: true,
+};
 
 export class AppStore {
   private state: AppState;
@@ -60,7 +79,7 @@ export class AppStore {
       window.history.replaceState(
         { step: this.state.currentStep },
         '',
-        `#${this.state.currentStep}`
+        window.location.href
       );
     }
   }
@@ -82,6 +101,7 @@ export class AppStore {
           savedScores: data.savedScores || [],
           toasts: [],
           sessions: [],
+          sectionPreferences: { ...DEFAULT_SECTION_PREFERENCES },
         };
       }
     } catch (error) {
@@ -100,6 +120,7 @@ export class AppStore {
       savedScores: [],
       toasts: [],
       sessions: [],
+      sectionPreferences: { ...DEFAULT_SECTION_PREFERENCES },
     };
   }
 
@@ -123,6 +144,108 @@ export class AppStore {
     return { ...this.state };
   }
 
+  isSessionScoring(): boolean {
+    return !!this.state.currentSession;
+  }
+
+  private isSectionEnabled(section: SectionKey): boolean {
+    if (!this.isSessionScoring()) return true;
+    return this.state.sectionPreferences[section];
+  }
+
+  getActiveSections(): SectionKey[] {
+    if (!this.isSessionScoring()) {
+      return [...SECTION_ORDER];
+    }
+    const active = SECTION_ORDER.filter((section) => this.state.sectionPreferences[section]);
+    return active.length ? active : [...SECTION_ORDER];
+  }
+
+  private getFirstActiveSection(startingSection: SectionKey = 'impact'): SectionKey | null {
+    const sections = this.getActiveSections();
+    if (sections.length === 0) return null;
+    const startIndex = sections.indexOf(startingSection);
+    if (startIndex === -1) {
+      return sections[0];
+    }
+    return sections[startIndex];
+  }
+
+  getNextActiveSection(current: SectionKey): SectionKey | null {
+    const sections = this.getActiveSections();
+    const index = sections.indexOf(current);
+    if (index === -1) return sections[0] ?? null;
+    return sections[index + 1] ?? null;
+  }
+
+  getPreviousActiveSection(current: SectionKey): SectionKey | null {
+    const sections = this.getActiveSections();
+    const index = sections.indexOf(current);
+    if (index === -1) return null;
+    return sections[index - 1] ?? null;
+  }
+
+  setSectionPreference(section: SectionKey, enabled: boolean): void {
+    if (!this.isSessionScoring()) {
+      // Preferences only matter during collaborative sessions
+      return;
+    }
+
+    if (!enabled) {
+      const enabledCount = Object.entries(this.state.sectionPreferences).filter(([key, value]) => value && key !== section).length;
+      if (enabledCount === 0) {
+        this.showToast('At least one section must stay enabled.', 'warning');
+        return;
+      }
+    }
+
+    this.state.sectionPreferences = {
+      ...this.state.sectionPreferences,
+      [section]: enabled,
+    };
+    this.notify();
+  }
+
+  resetSectionPreferences(): void {
+    this.state.sectionPreferences = { ...DEFAULT_SECTION_PREFERENCES };
+    this.notify();
+  }
+
+  loadSectionPreferencesFor(sessionId: string, scorer: string): void {
+    if (!sessionId || !scorer) return;
+    try {
+      const key = this.getSectionPreferenceStorageKey(sessionId, scorer);
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        this.state.sectionPreferences = {
+          ...DEFAULT_SECTION_PREFERENCES,
+          ...parsed,
+        };
+      } else {
+        this.state.sectionPreferences = { ...DEFAULT_SECTION_PREFERENCES };
+      }
+      this.notify();
+    } catch (error) {
+      console.warn('Unable to load section preferences:', error);
+    }
+  }
+
+  saveSectionPreferencesFor(sessionId: string, scorer: string): void {
+    if (!sessionId || !scorer) return;
+    try {
+      const key = this.getSectionPreferenceStorageKey(sessionId, scorer);
+      localStorage.setItem(key, JSON.stringify(this.state.sectionPreferences));
+    } catch (error) {
+      console.warn('Unable to save section preferences:', error);
+    }
+  }
+
+  startScoringFlow(startSection: SectionKey = 'impact'): void {
+    const first = this.getFirstActiveSection(startSection) ?? 'impact';
+    this.setStep(`${first}-intro` as AppStep);
+  }
+
   subscribe(listener: (state: AppState) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -132,19 +255,72 @@ export class AppStore {
     this.listeners.forEach((listener) => listener(this.getState()));
   }
 
-  setStep(step: AppStep): void {
+  setStep(step: AppStep, options?: { replaceHistory?: boolean }): void {
     this.state.currentStep = step;
 
-    // Update browser history (but not when restoring from history)
     if (!this.isRestoringFromHistory) {
-      window.history.pushState(
-        { step },
-        '',
-        `#${step}`
-      );
+      this.pushStepToHistory(step, options?.replaceHistory ?? false);
     }
 
     this.notify();
+  }
+
+  private pushStepToHistory(step: AppStep, replace = false): void {
+    if (typeof window === 'undefined' || typeof window.history === 'undefined') {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+
+    if (this.state.currentSession?.id) {
+      url.searchParams.set('sessionId', this.state.currentSession.id);
+    } else {
+      url.searchParams.delete('sessionId');
+    }
+
+    url.hash = this.buildHashForStep(step);
+
+    const historyState = { step };
+
+    if (replace) {
+      window.history.replaceState(historyState, '', url.toString());
+    } else {
+      window.history.pushState(historyState, '', url.toString());
+    }
+  }
+
+  private buildHashForStep(step: AppStep): string {
+    if (
+      step === 'feature-breakdown' &&
+      this.state.currentSession?.id &&
+      this.state.currentSessionFeature?.id
+    ) {
+      return `${step}/${this.state.currentSession.id}/${this.state.currentSessionFeature.id}`;
+    }
+
+    return step;
+  }
+
+  private syncSessionQueryParam(replace = true): void {
+    if (typeof window === 'undefined' || typeof window.history === 'undefined') {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+
+    if (this.state.currentSession?.id) {
+      url.searchParams.set('sessionId', this.state.currentSession.id);
+    } else {
+      url.searchParams.delete('sessionId');
+    }
+
+    const historyState = window.history.state ?? { step: this.state.currentStep };
+
+    if (replace) {
+      window.history.replaceState(historyState, '', url.toString());
+    } else {
+      window.history.pushState(historyState, '', url.toString());
+    }
   }
 
   setFeatureInfo(featureName: string, scoredBy: string): void {
@@ -153,7 +329,19 @@ export class AppStore {
     this.notify();
   }
 
-  setResponse(section: 'impact' | 'confidence' | 'effort', questionId: string, value: number): void {
+  prepareFeatureForScoring(featureName: string, scoredBy: string): void {
+    this.state.featureName = featureName;
+    this.state.scoredBy = scoredBy || 'PM';
+    this.state.responses = {
+      impact: [],
+      confidence: [],
+      effort: [],
+    };
+    this.state.currentScore = undefined;
+    this.notify();
+  }
+
+  setResponse(section: SectionKey, questionId: string, value: number): void {
     const responses = this.state.responses[section];
     const existingIndex = responses.findIndex((r) => r.questionId === questionId);
 
@@ -166,16 +354,37 @@ export class AppStore {
     this.notify();
   }
 
-  getResponse(section: 'impact' | 'confidence' | 'effort', questionId: string): number | undefined {
+  getResponse(section: SectionKey, questionId: string): number | undefined {
     const response = this.state.responses[section].find((r) => r.questionId === questionId);
     return response?.value;
   }
 
   calculateScore(): ScoreResult {
-    const impact = this.calculateAverage(this.state.responses.impact);
-    const confidence = this.calculateAverage(this.state.responses.confidence);
-    const ease = this.calculateAverage(this.state.responses.effort); // "Effort" questions use inverted scale, so higher = easier
-    const iceScore = Number((impact * confidence * ease).toFixed(2));
+    const sectionValues: Record<SectionKey, number> = {
+      impact: 0,
+      confidence: 0,
+      effort: 0,
+    };
+    const skippedSections: SectionKey[] = [];
+
+    SECTION_ORDER.forEach((section) => {
+      const responses = this.state.responses[section];
+      const hasResponses = responses.length > 0;
+      const enabled = this.isSectionEnabled(section);
+
+      if (!enabled || !hasResponses) {
+        skippedSections.push(section);
+        sectionValues[section] = 0;
+      } else {
+        sectionValues[section] = Number(this.calculateAverage(responses).toFixed(2));
+      }
+    });
+
+    const shouldCalculateIce = skippedSections.length === 0;
+    const iceScore = shouldCalculateIce
+      ? Number((sectionValues.impact * sectionValues.confidence * sectionValues.effort).toFixed(2))
+      : null;
+    const tier = iceScore !== null ? getTierForScore(iceScore) : undefined;
 
     const now = new Date();
     const date = now.toISOString().split('T')[0];
@@ -184,11 +393,12 @@ export class AppStore {
     const result: ScoreResult = {
       featureName: this.state.featureName,
       scoredBy: this.state.scoredBy,
-      impact: Number(impact.toFixed(2)),
-      confidence: Number(confidence.toFixed(2)),
-      effort: Number(ease.toFixed(2)), // Store as "effort" for consistency, but it's actually "ease"
+      impact: sectionValues.impact,
+      confidence: sectionValues.confidence,
+      effort: sectionValues.effort, // Store as "effort" for consistency, but it's actually "ease"
       iceScore,
-      tier: getTierForScore(iceScore),
+      tier,
+      skippedSections: skippedSections.length ? skippedSections : undefined,
       date,
       time,
       // Store detailed responses for later analysis
@@ -220,6 +430,10 @@ export class AppStore {
 
   async saveCurrentScore(): Promise<void> {
     if (this.state.currentScore) {
+      if (this.state.currentScore.iceScore === null || !this.state.currentScore.tier) {
+        this.showToast('Complete all sections before saving to export.', 'warning');
+        return;
+      }
       if (this.state.savedScores.length >= MAX_SAVED_SCORES && !supabaseStore) {
         this.showToast(`Maximum of ${MAX_SAVED_SCORES} scores reached. Please clear old scores.`, 'error');
         return;
@@ -345,6 +559,7 @@ export class AppStore {
   needsJustification(): boolean {
     if (!this.state.currentScore) return false;
     const score = this.state.currentScore.iceScore;
+    if (score === null) return false;
     // Require justification for very high scores (top tier) or very low scores (bottom tier)
     return score >= 701 || score <= 100;
   }
@@ -369,17 +584,8 @@ export class AppStore {
     // Mark as in-progress
     currentFeature.status = 'in-progress';
 
-    // Set up for scoring
-    this.state.featureName = currentFeature.name;
-    this.state.scoredBy = this.state.batchScoring.scoredBy;
-    this.state.responses = {
-      impact: [],
-      confidence: [],
-      effort: [],
-    };
-    this.state.currentScore = undefined;
-    this.state.currentStep = 'impact-intro';
-    this.notify();
+    this.prepareFeatureForScoring(currentFeature.name, this.state.batchScoring.scoredBy);
+    this.startScoringFlow('impact');
   }
 
   startScoringBatchFeatureByIndex(index: number): void {
@@ -395,17 +601,8 @@ export class AppStore {
     // Mark as in-progress
     feature.status = 'in-progress';
 
-    // Set up for scoring
-    this.state.featureName = feature.name;
-    this.state.scoredBy = this.state.batchScoring.scoredBy;
-    this.state.responses = {
-      impact: [],
-      confidence: [],
-      effort: [],
-    };
-    this.state.currentScore = undefined;
-    this.state.currentStep = 'impact-intro';
-    this.notify();
+    this.prepareFeatureForScoring(feature.name, this.state.batchScoring.scoredBy);
+    this.startScoringFlow('impact');
   }
 
   skipCurrentBatchFeature(): void {
@@ -472,6 +669,10 @@ export class AppStore {
 
   isBatchScoring(): boolean {
     return !!this.state.batchScoring;
+  }
+
+  private getSectionPreferenceStorageKey(sessionId: string, scorer: string): string {
+    return `${SECTION_PREF_KEY_PREFIX}:${sessionId}:${scorer.trim().toLowerCase()}`;
   }
 
   // Toast management
@@ -552,8 +753,7 @@ export class AppStore {
     const session = await sessionStore.createSession(name, createdBy, description, aggregationMethod);
     if (session) {
       this.state.sessions.push(session);
-      this.state.currentSession = session;
-      this.notify();
+      this.setCurrentSession(session);
       this.showToast('Session created successfully', 'success');
     }
     return session;
@@ -569,8 +769,7 @@ export class AppStore {
       } else {
         this.state.sessions.push(sessionDetails);
       }
-      this.state.currentSession = sessionDetails;
-      this.notify();
+      this.setCurrentSession(sessionDetails);
     }
     return sessionDetails;
   }
@@ -592,18 +791,22 @@ export class AppStore {
     impact: number,
     confidence: number,
     effort: number,
-    iceScore: number,
+    iceScore: number | null,
     justification?: string,
-    responses?: any
+    responses?: any,
+    skippedSections: SectionKey[] = []
   ): Promise<boolean> {
-    const tier = getTierForScore(iceScore);
+    const toValue = (section: SectionKey, value: number): number | null =>
+      skippedSections.includes(section) ? null : value;
+
+    const tier = iceScore !== null ? getTierForScore(iceScore) : undefined;
     const score = await sessionStore.saveSessionScore(
       sessionId,
       featureId,
       scoredBy,
-      impact,
-      confidence,
-      effort,
+      toValue('impact', impact),
+      toValue('confidence', confidence),
+      toValue('effort', effort),
       iceScore,
       tier,
       justification,
@@ -657,9 +860,10 @@ export class AppStore {
     if (success) {
       this.state.sessions = this.state.sessions.filter(s => s.id !== sessionId);
       if (this.state.currentSession?.id === sessionId) {
-        this.state.currentSession = undefined;
+        this.setCurrentSession(undefined);
+      } else {
+        this.notify();
       }
-      this.notify();
       this.showToast('Session deleted', 'success');
     }
     return success;
@@ -667,6 +871,29 @@ export class AppStore {
 
   setCurrentSession(session: ScoringSession | undefined): void {
     this.state.currentSession = session;
+    if (!session) {
+      this.state.sectionPreferences = { ...DEFAULT_SECTION_PREFERENCES };
+      this.state.currentSessionFeature = undefined;
+    }
+
+    if (!this.isRestoringFromHistory) {
+      this.syncSessionQueryParam(true);
+
+      if (this.state.currentStep === 'feature-breakdown') {
+        this.pushStepToHistory(this.state.currentStep, true);
+      }
+    }
+
+    this.notify();
+  }
+
+  setCurrentSessionFeature(feature: SessionFeature | undefined): void {
+    this.state.currentSessionFeature = feature;
+
+    if (!this.isRestoringFromHistory && this.state.currentStep === 'feature-breakdown') {
+      this.pushStepToHistory(this.state.currentStep, true);
+    }
+
     this.notify();
   }
 

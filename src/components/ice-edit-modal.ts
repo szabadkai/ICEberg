@@ -226,7 +226,7 @@ export class IceEditModal extends LitElement {
               <div class="readonly-field">
                 Impact: ${this.score.impact.toFixed(2)} | Confidence:
                 ${this.score.confidence.toFixed(2)} | Ease: ${this.score.effort.toFixed(2)} → ICE:
-                ${this.score.iceScore.toFixed(2)}
+                ${this.score.iceScore !== null ? this.score.iceScore.toFixed(2) : '—'}
               </div>
               <div class="help-text">
                 To change scores, you'll need to score the feature again from scratch

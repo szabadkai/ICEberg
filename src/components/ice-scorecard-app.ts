@@ -3,7 +3,7 @@ import { customElement, state } from 'lit/decorators.js';
 import { provide } from '@lit/context';
 import { appStateContext } from '../store/context';
 import { appStore } from '../store/store';
-import { AppState } from '../types';
+import { AppState, AppStep } from '../types';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 import './ice-landing-page';
@@ -30,35 +30,39 @@ export class IceScorecardApp extends LitElement {
 
   static styles = css`
     :host {
-      display: block;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       min-height: 100vh;
+      padding: 1.5rem;
       background: #f8fafc;
     }
 
     .container {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 2rem 1rem;
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
     }
 
     .card {
       background: white;
-      border-radius: 8px;
+      border-radius: 12px;
       border: 1px solid #e2e8f0;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-      padding: 3rem;
-      min-height: 500px;
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+      padding: 2rem;
       display: flex;
       flex-direction: column;
+      min-height: 0;
     }
 
     .progress-bar {
       width: 100%;
-      height: 6px;
+      height: 4px;
       background: #e2e8f0;
-      border-radius: 3px;
+      border-radius: 999px;
       overflow: hidden;
-      margin-bottom: 2rem;
     }
 
     .progress-fill {
@@ -68,12 +72,17 @@ export class IceScorecardApp extends LitElement {
     }
 
     @media (max-width: 640px) {
+      :host {
+        padding: 1rem;
+        align-items: flex-start;
+      }
+
       .container {
-        padding: 1rem 0.5rem;
+        gap: 0.75rem;
       }
 
       .card {
-        padding: 1.5rem;
+        padding: 1.25rem;
       }
     }
   `;
@@ -94,7 +103,16 @@ export class IceScorecardApp extends LitElement {
         // Load the session and navigate to dashboard
         const loaded = await appStore.loadSessionWithDetails(sessionId);
         if (loaded) {
-          appStore.setStep('session-dashboard');
+          const targetStep = this.getStepFromHash();
+
+          if (targetStep?.step === 'feature-breakdown' && targetStep.featureId) {
+            const feature = loaded.features.find(f => f.id === targetStep.featureId);
+            if (feature) {
+              appStore.setCurrentSessionFeature(feature);
+            }
+          }
+
+          appStore.setStep(targetStep?.step ?? 'session-dashboard', { replaceHistory: true });
         } else {
           appStore.showToast('Session not found', 'error');
         }
@@ -187,6 +205,25 @@ export class IceScorecardApp extends LitElement {
       default:
         return html`<ice-landing-page></ice-landing-page>`;
     }
+  }
+
+  private getStepFromHash(): { step: AppStep; featureId?: string } | null {
+    if (typeof window === 'undefined') return null;
+
+    const hash = window.location.hash.replace('#', '');
+    if (!hash) return null;
+
+    if (hash.startsWith('feature-breakdown/')) {
+      const [, , featureId] = hash.split('/');
+      return featureId ? { step: 'feature-breakdown', featureId } : { step: 'feature-breakdown' };
+    }
+
+    const shareableSteps: AppStep[] = ['session-dashboard', 'session-visualize', 'session-export'];
+    if (shareableSteps.includes(hash as AppStep)) {
+      return { step: hash as AppStep };
+    }
+
+    return null;
   }
 }
 

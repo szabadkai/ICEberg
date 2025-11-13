@@ -1,13 +1,27 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { appStore } from '../store/store';
-import { SessionWithDetails, SessionFeature, SessionAggregate } from '../types';
+import { SessionWithDetails, SessionFeature, SessionAggregate, SectionKey, SessionScore } from '../types';
+
+type FeatureStatus = 'pending' | 'completed';
+
+interface SessionFeatureRow {
+  feature: SessionFeature;
+  aggregate?: SessionAggregate;
+  userScore?: SessionScore;
+  status: FeatureStatus;
+  isCurrent: boolean;
+}
 
 @customElement('ice-session-dashboard')
 export class IceSessionDashboard extends LitElement {
   @state() private session?: SessionWithDetails;
   @state() private loading = true;
   @state() private scorerName = '';
+  @state() private sectionPreferences = appStore.getState().sectionPreferences;
+  @state() private currentSessionFeatureId?: string;
+  private unsubscribe?: () => void;
+  private preferenceKey?: string;
 
   static styles = css`
     :host {
@@ -84,92 +98,173 @@ export class IceSessionDashboard extends LitElement {
       border-color: #3b82f6;
     }
 
-    .features-grid {
-      display: grid;
-      gap: 1rem;
-      margin-bottom: 2rem;
+    .section-preferences {
+      margin-top: 1rem;
+      text-align: left;
     }
 
-    .feature-card {
+    .section-preferences h4 {
+      margin: 0 0 0.25rem 0;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #1e40af;
+    }
+
+    .section-preferences p {
+      margin: 0 0 0.75rem 0;
+      color: #3b82f6;
+      font-size: 0.85rem;
+    }
+
+    .section-toggle-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .section-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #93c5fd;
+      border-radius: 0.5rem;
+      background: white;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #1e3a8a;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .section-toggle input {
+      accent-color: #3b82f6;
+    }
+
+    .section-toggle[aria-checked='false'] {
+      opacity: 0.6;
+    }
+
+    .progress-section {
+      margin-bottom: 2rem;
       background: white;
       border: 2px solid #e5e7eb;
       border-radius: 0.75rem;
       padding: 1.5rem;
-      transition: all 0.2s;
-      cursor: pointer;
     }
 
-    .feature-card:hover {
-      border-color: #3b82f6;
-      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    }
-
-    .feature-card.scored {
-      background: #f0fdf4;
-      border-color: #86efac;
-    }
-
-    .feature-header {
+    .progress-header {
       display: flex;
       justify-content: space-between;
-      align-items: start;
+      flex-wrap: wrap;
       gap: 1rem;
-      margin-bottom: 1rem;
+      align-items: center;
+      margin-bottom: 1.25rem;
     }
 
-    .feature-title {
-      font-size: 1.125rem;
+    .progress-header h3 {
+      margin: 0;
+      font-size: 1.35rem;
+      color: #111827;
+    }
+
+    .progress-info {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      font-size: 0.95rem;
+      color: #6b7280;
+    }
+
+    .progress-bar-container {
+      background: #e5e7eb;
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #2563eb);
+      transition: width 0.3s ease;
+    }
+
+    .feature-list {
+      border: 1px solid #e5e7eb;
+      border-radius: 0.75rem;
+      overflow: hidden;
+    }
+
+    .feature-item {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid #f3f4f6;
+      align-items: center;
+      transition: background 0.2s, border-left 0.2s;
+    }
+
+    .feature-item:last-child {
+      border-bottom: none;
+    }
+
+    .feature-item.current {
+      background: #eff6ff;
+      border-left: 4px solid #3b82f6;
+    }
+
+    .feature-item.completed {
+      background: #f0fdf4;
+    }
+
+    .feature-status {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .feature-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .feature-name {
       font-weight: 600;
       color: #1f2937;
-      margin: 0;
+      margin-bottom: 0.25rem;
+      word-break: break-word;
     }
 
     .feature-description {
       color: #6b7280;
       font-size: 0.875rem;
-      margin-bottom: 1rem;
+      margin-bottom: 0.5rem;
     }
 
-    .consensus-info {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid #e5e7eb;
-    }
-
-    .consensus-item {
-      text-align: center;
-    }
-
-    .consensus-label {
-      font-size: 0.75rem;
+    .feature-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      font-size: 0.85rem;
       color: #6b7280;
-      text-transform: uppercase;
-      margin-bottom: 0.25rem;
     }
 
-    .consensus-value {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #1f2937;
-    }
-
-    .consensus-stddev {
-      font-size: 0.75rem;
-      color: #9ca3af;
-    }
-
-    .score-count {
+    .feature-pill {
       display: inline-flex;
       align-items: center;
       gap: 0.25rem;
       padding: 0.25rem 0.75rem;
+      border-radius: 999px;
       background: #e0f2fe;
       color: #0c4a6e;
-      border-radius: 9999px;
-      font-size: 0.875rem;
       font-weight: 600;
+      font-size: 0.8rem;
+    }
+
+    .feature-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-shrink: 0;
     }
 
     .btn {
@@ -221,8 +316,23 @@ export class IceSessionDashboard extends LitElement {
     }
 
     @media (max-width: 768px) {
-      .consensus-info {
-        grid-template-columns: repeat(2, 1fr);
+      .progress-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .feature-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .feature-actions {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .feature-actions .btn {
+        flex: 1;
       }
 
       .action-buttons {
@@ -233,7 +343,16 @@ export class IceSessionDashboard extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.unsubscribe = appStore.subscribe((state) => {
+      this.sectionPreferences = state.sectionPreferences;
+      this.currentSessionFeatureId = state.currentSessionFeature?.id;
+    });
     this.loadSession();
+  }
+
+  disconnectedCallback() {
+    this.unsubscribe?.();
+    super.disconnectedCallback();
   }
 
   private async loadSession() {
@@ -246,11 +365,13 @@ export class IceSessionDashboard extends LitElement {
     this.loading = true;
     const sessionDetails = await appStore.loadSessionWithDetails(state.currentSession.id);
     this.session = sessionDetails || undefined;
+    this.preferenceKey = undefined;
     this.loading = false;
 
     // Pre-fill scorer name if we have one
     if (!this.scorerName && state.currentSession) {
       this.scorerName = state.currentSession.created_by;
+      this.syncPreferencesFromStorage(true);
     }
   }
 
@@ -290,16 +411,7 @@ export class IceSessionDashboard extends LitElement {
 
       ${this.renderScorerInput()}
 
-      ${this.session.features.length === 0
-        ? this.renderNoFeatures()
-        : html`
-            <h3 style="font-size: 1.25rem; font-weight: 600; color: #374151; margin-bottom: 1rem;">
-              Features to Score
-            </h3>
-            <div class="features-grid">
-              ${this.session.features.map(feature => this.renderFeatureCard(feature))}
-            </div>
-          `}
+      ${this.renderFeatureQueue()}
 
       <div class="action-buttons">
         <button class="btn btn-secondary" @click=${this.handleAddFeatures}>
@@ -344,70 +456,104 @@ export class IceSessionDashboard extends LitElement {
           type="text"
           placeholder="Enter your name"
           .value=${this.scorerName}
-          @input=${(e: Event) => (this.scorerName = (e.target as HTMLInputElement).value)}
+          @input=${this.handleScorerInput}
         />
+
+        <div class="section-preferences">
+          <h4>Sections you'll score</h4>
+          <p>Select which parts of the questionnaire you want to answer.</p>
+          <div class="section-toggle-grid">
+            ${this.renderSectionToggle('impact', 'Impact')}
+            ${this.renderSectionToggle('confidence', 'Confidence')}
+            ${this.renderSectionToggle('effort', 'Effort')}
+          </div>
+        </div>
       </div>
     `;
   }
 
-  private renderFeatureCard(feature: SessionFeature) {
-    if (!this.session) return '';
+  private renderSectionToggle(section: SectionKey, label: string) {
+    const enabled = this.sectionPreferences[section];
+    return html`
+      <label class="section-toggle" aria-checked=${enabled ? 'true' : 'false'}>
+        <input
+          type="checkbox"
+          .checked=${enabled}
+          @change=${(event: Event) => this.handlePreferenceChange(section, event)}
+        />
+        ${label}
+      </label>
+    `;
+  }
 
-    // Find aggregate for this feature
-    const aggregate = this.session.aggregates.find(a => a.feature_id === feature.id);
+  private renderFeatureQueue() {
+    if (!this.session || this.session.features.length === 0) {
+      return this.renderNoFeatures();
+    }
 
-    // Check if current user has scored this feature
-    const userScore = this.session.scores.find(
-      s => s.feature_id === feature.id && s.scored_by === this.scorerName
-    );
+    const rows = this.getFeatureRows();
+    if (rows.length === 0) {
+      return this.renderNoFeatures();
+    }
 
-    const hasScored = !!userScore;
-    const hasMultipleScores = aggregate && aggregate.score_count > 1;
+    const stats = this.getFeatureProgress(rows);
 
     return html`
-      <div
-        class="feature-card ${hasScored ? 'scored' : ''}"
-        @click=${() => this.handleScoreFeature(feature)}
-      >
-        <div class="feature-header">
-          <h4 class="feature-title">${feature.name}</h4>
-          ${aggregate ? html`<span class="score-count">👥 ${aggregate.score_count}</span>` : ''}
+      <div class="progress-section">
+        <div class="progress-header">
+          <h3>Team Scoring Queue</h3>
+          <div class="progress-info">
+            <span>${stats.completedByYou} scored by you</span>
+            <span>${stats.pending} awaiting your score</span>
+            <span>${stats.teamSubmissions} team submissions</span>
+          </div>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" style="width: ${stats.progress}%"></div>
         </div>
 
-        ${feature.description
-          ? html`<p class="feature-description">${feature.description}</p>`
-          : ''}
+        <div class="feature-list">
+          ${rows.map(row => this.renderFeatureRow(row))}
+        </div>
+      </div>
+    `;
+  }
 
-        ${aggregate ? this.renderConsensusInfo(aggregate) : this.renderNoScores()}
+  private renderFeatureRow(row: SessionFeatureRow) {
+    const { feature, aggregate, status, isCurrent } = row;
+    const scoreCount = aggregate?.score_count ?? 0;
+    const isCompleted = status === 'completed';
+    const actionLabel = isCompleted ? 'Update score' : 'Score feature';
+    const avgIceLabel = aggregate?.avg_ice_score != null ? `${aggregate.avg_ice_score.toFixed(0)} avg ICE` : 'No team score yet';
+    const spreadLabel = aggregate?.ice_stddev ? `±${Math.round(aggregate.ice_stddev)} spread` : undefined;
 
-        <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
-          ${hasScored
-            ? html`<div style="color: #059669; font-size: 0.875rem; font-weight: 600;">
-                ✓ You've scored this feature
-              </div>`
-            : html`<div style="color: #3b82f6; font-size: 0.875rem; font-weight: 600;">
-                Click to score →
-              </div>`}
+    const classes = ['feature-item'];
+    if (isCurrent) classes.push('current');
+    if (isCompleted) classes.push('completed');
 
-          ${hasMultipleScores
+    const statusIcon = isCompleted ? '✅' : isCurrent ? '👉' : '⏳';
+
+    return html`
+      <div class="${classes.join(' ')}">
+        <div class="feature-status">${statusIcon}</div>
+        <div class="feature-content">
+          <div class="feature-name">${feature.name}</div>
+          ${feature.description ? html`<div class="feature-description">${feature.description}</div>` : ''}
+          <div class="feature-meta">
+            <span class="feature-pill">👥 ${scoreCount} scores</span>
+            <span>${avgIceLabel}</span>
+            ${aggregate?.tier_name ? html`<span>Tier: ${aggregate.tier_name}</span>` : ''}
+            ${spreadLabel ? html`<span>${spreadLabel}</span>` : ''}
+          </div>
+        </div>
+        <div class="feature-actions">
+          <button class="btn btn-primary" @click=${() => this.handleScoreFeature(feature)}>
+            ${actionLabel}
+          </button>
+          ${scoreCount > 1
             ? html`
-                <button
-                  @click=${(e: Event) => {
-                    e.stopPropagation();
-                    this.handleViewBreakdown(feature);
-                  }}
-                  style="
-                    padding: 0.5rem 1rem;
-                    background: white;
-                    color: #3b82f6;
-                    border: 2px solid #3b82f6;
-                    border-radius: 0.375rem;
-                    font-size: 0.875rem;
-                    font-weight: 600;
-                    cursor: pointer;
-                  "
-                >
-                  View Breakdown
+                <button class="btn btn-secondary" @click=${() => this.handleViewBreakdown(feature)}>
+                  View breakdown
                 </button>
               `
             : ''}
@@ -416,47 +562,63 @@ export class IceSessionDashboard extends LitElement {
     `;
   }
 
-  private renderConsensusInfo(aggregate: SessionAggregate) {
-    return html`
-      <div class="consensus-info">
-        <div class="consensus-item">
-          <div class="consensus-label">Impact</div>
-          <div class="consensus-value">${aggregate.avg_impact.toFixed(1)}</div>
-          ${aggregate.impact_stddev
-            ? html`<div class="consensus-stddev">±${aggregate.impact_stddev.toFixed(1)}</div>`
-            : ''}
-        </div>
-        <div class="consensus-item">
-          <div class="consensus-label">Confidence</div>
-          <div class="consensus-value">${aggregate.avg_confidence.toFixed(1)}</div>
-          ${aggregate.confidence_stddev
-            ? html`<div class="consensus-stddev">±${aggregate.confidence_stddev.toFixed(1)}</div>`
-            : ''}
-        </div>
-        <div class="consensus-item">
-          <div class="consensus-label">Effort</div>
-          <div class="consensus-value">${aggregate.avg_effort.toFixed(1)}</div>
-          ${aggregate.effort_stddev
-            ? html`<div class="consensus-stddev">±${aggregate.effort_stddev.toFixed(1)}</div>`
-            : ''}
-        </div>
-        <div class="consensus-item">
-          <div class="consensus-label">ICE Score</div>
-          <div class="consensus-value">${aggregate.avg_ice_score.toFixed(0)}</div>
-          ${aggregate.ice_stddev
-            ? html`<div class="consensus-stddev">±${aggregate.ice_stddev.toFixed(0)}</div>`
-            : ''}
-        </div>
-      </div>
-    `;
+  private getFeatureRows(): SessionFeatureRow[] {
+    if (!this.session) return [];
+    const scorer = this.scorerName.trim().toLowerCase();
+
+    const rows: SessionFeatureRow[] = this.session.features.map(feature => {
+      const aggregate = this.session!.aggregates.find(a => a.feature_id === feature.id);
+      const userScore = scorer
+        ? this.session!.scores.find(s => s.feature_id === feature.id && s.scored_by.trim().toLowerCase() === scorer)
+        : undefined;
+      const status: FeatureStatus = userScore ? 'completed' : 'pending';
+      return {
+        feature,
+        aggregate,
+        userScore,
+        status,
+        isCurrent: false,
+      };
+    });
+
+    let highlightId = this.currentSessionFeatureId;
+    if (!highlightId) {
+      const firstPending = rows.find(row => row.status === 'pending');
+      highlightId = firstPending?.feature.id;
+    }
+
+    return rows.map(row => ({
+      ...row,
+      isCurrent: highlightId ? row.feature.id === highlightId : false,
+    }));
   }
 
-  private renderNoScores() {
-    return html`
-      <div style="color: #9ca3af; font-size: 0.875rem; font-style: italic; padding: 1rem 0;">
-        No scores yet. Be the first to score this feature!
-      </div>
-    `;
+  private getFeatureProgress(rows: SessionFeatureRow[]) {
+    const total = rows.length;
+    const completedByYou = rows.filter(row => row.status === 'completed').length;
+    const pending = total - completedByYou;
+    const teamSubmissions = this.session?.scores.length ?? 0;
+    const progress = total > 0 ? Math.round((completedByYou / total) * 100) : 0;
+
+    return {
+      total,
+      completedByYou,
+      pending,
+      progress,
+      teamSubmissions,
+    };
+  }
+
+  private handlePreferenceChange(section: SectionKey, event: Event) {
+    const checked = (event.target as HTMLInputElement).checked;
+    appStore.setSectionPreference(section, checked);
+    const state = appStore.getState();
+    if (state.sectionPreferences[section] === checked) {
+      this.persistPreferences();
+    } else {
+      // revert checkbox to actual value if store rejected change
+      (event.target as HTMLInputElement).checked = state.sectionPreferences[section];
+    }
   }
 
   private renderNoFeatures() {
@@ -491,37 +653,49 @@ export class IceSessionDashboard extends LitElement {
 
     if (!this.session) return;
 
-    // Store scorer name and start scoring this feature
-    appStore.setFeatureInfo(feature.name, this.scorerName.trim());
+    const preferences = appStore.getState().sectionPreferences;
+    if (!Object.values(preferences).some(Boolean)) {
+      appStore.showToast('Enable at least one section to score.', 'warning');
+      return;
+    }
 
-    // Store feature context for session scoring
-    appStore.getState().currentSessionFeature = feature;
-
-    // Navigate to scoring flow
-    appStore.setStep('impact-intro');
+    appStore.prepareFeatureForScoring(feature.name, this.scorerName.trim());
+    appStore.setCurrentSessionFeature(feature);
+    this.persistPreferences();
+    appStore.startScoringFlow('impact');
   }
 
   private handleAddFeatures() {
     appStore.setStep('batch-upload');
   }
 
-  private handleInvite() {
+  private async handleInvite() {
     if (!this.session) return;
 
-    // Create shareable URL with session ID
-    const shareUrl = `${window.location.origin}${window.location.pathname}?sessionId=${this.session.id}`;
+    const url = new URL(window.location.href);
+    url.searchParams.set('sessionId', this.session.id);
+    if (!url.hash || url.hash === '#landing') {
+      url.hash = '#session-dashboard';
+    }
+    const shareUrl = url.toString();
 
-    // Copy to clipboard
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      appStore.showToast('Session link copied to clipboard! Share it with your team.', 'success', 6000);
-    }).catch(() => {
-      // Fallback: show the URL in a prompt
-      appStore.showConfirm(
-        'Share Session',
-        `Share this link with your team:\n\n${shareUrl}\n\nSession ID: ${this.session!.id}`,
-        { confirmText: 'OK', cancelText: '' }
-      );
-    });
+    const copySupported = navigator?.clipboard && window.isSecureContext;
+
+    if (copySupported) {
+      try {
+        await navigator.clipboard!.writeText(shareUrl);
+        appStore.showToast('Session link copied to clipboard! Share it with your team.', 'success', 6000);
+        return;
+      } catch (error) {
+        console.warn('Clipboard copy failed, falling back to dialog:', error);
+      }
+    }
+
+    appStore.showConfirm(
+      'Share Session',
+      `Share this link with your team:\n\n${shareUrl}\n\nSession ID: ${this.session.id}`,
+      { confirmText: 'Close', cancelText: '' }
+    );
   }
 
   private handleVisualize() {
@@ -536,7 +710,7 @@ export class IceSessionDashboard extends LitElement {
     if (!this.session) return;
 
     // Store feature for breakdown view
-    appStore.getState().currentSessionFeature = feature;
+    appStore.setCurrentSessionFeature(feature);
 
     // Navigate to breakdown
     appStore.setStep('feature-breakdown');
@@ -576,6 +750,39 @@ export class IceSessionDashboard extends LitElement {
     appStore.setCurrentSession(undefined);
     appStore.setStep('session-list');
   }
+
+  private handleScorerInput = (event: Event) => {
+    this.scorerName = (event.target as HTMLInputElement).value;
+    this.syncPreferencesFromStorage();
+  };
+
+  private syncPreferencesFromStorage(forceReset = false) {
+    if (!this.session) return;
+    const scorer = this.scorerName.trim();
+    if (!scorer) {
+      if (forceReset || this.preferenceKey) {
+        appStore.resetSectionPreferences();
+      }
+      this.preferenceKey = undefined;
+      return;
+    }
+
+    const key = `${this.session.id}:${scorer.toLowerCase()}`;
+    if (this.preferenceKey === key && !forceReset) {
+      return;
+    }
+
+    this.preferenceKey = key;
+    appStore.loadSectionPreferencesFor(this.session.id, scorer);
+  }
+
+  private persistPreferences() {
+    if (!this.session) return;
+    const scorer = this.scorerName.trim();
+    if (!scorer) return;
+    appStore.saveSectionPreferencesFor(this.session.id, scorer);
+  }
+
 }
 
 declare global {

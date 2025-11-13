@@ -36,6 +36,14 @@ export class IceBulkUpload extends LitElement {
       line-height: 1.6;
     }
 
+    .sample-download {
+      margin: 1rem 0 2rem;
+    }
+
+    .sample-download a {
+      text-decoration: none;
+    }
+
     .scorer-input {
       margin-bottom: 2rem;
     }
@@ -100,6 +108,9 @@ export class IceBulkUpload extends LitElement {
     }
 
     .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       padding: 0.75rem 1.5rem;
       border-radius: 0.5rem;
       font-size: 1rem;
@@ -201,6 +212,17 @@ export class IceBulkUpload extends LitElement {
         margin-top: 1rem;
       }
     }
+
+    @media (max-width: 640px) {
+      .sample-download .btn {
+        width: 100%;
+      }
+
+      .button-group button,
+      .button-group .btn {
+        width: 100%;
+      }
+    }
   `;
 
   render() {
@@ -210,6 +232,12 @@ export class IceBulkUpload extends LitElement {
         <p class="description">
           Upload a CSV file with multiple features to score them in batch mode.
         </p>
+
+        <div class="sample-download">
+          <a class="btn btn-primary" href="/sample.csv" download>
+            Download sample.csv
+          </a>
+        </div>
 
         ${this.error ? html`<div class="error">${this.error}</div>` : ''}
 

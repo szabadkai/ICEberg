@@ -357,7 +357,7 @@ export class IceFeatureBreakdown extends LitElement {
         <div class="consensus-grid">
           <div class="consensus-item">
             <div class="consensus-label">Impact</div>
-            <div class="consensus-value">${agg.avg_impact.toFixed(1)}</div>
+            <div class="consensus-value">${this.formatAggregateValue(agg.avg_impact)}</div>
             ${agg.impact_stddev
               ? html`
                   <div class="consensus-stddev">±${agg.impact_stddev.toFixed(1)}</div>
@@ -367,7 +367,7 @@ export class IceFeatureBreakdown extends LitElement {
           </div>
           <div class="consensus-item">
             <div class="consensus-label">Confidence</div>
-            <div class="consensus-value">${agg.avg_confidence.toFixed(1)}</div>
+            <div class="consensus-value">${this.formatAggregateValue(agg.avg_confidence)}</div>
             ${agg.confidence_stddev
               ? html`
                   <div class="consensus-stddev">±${agg.confidence_stddev.toFixed(1)}</div>
@@ -377,7 +377,7 @@ export class IceFeatureBreakdown extends LitElement {
           </div>
           <div class="consensus-item">
             <div class="consensus-label">Effort</div>
-            <div class="consensus-value">${agg.avg_effort.toFixed(1)}</div>
+            <div class="consensus-value">${this.formatAggregateValue(agg.avg_effort)}</div>
             ${agg.effort_stddev
               ? html`
                   <div class="consensus-stddev">±${agg.effort_stddev.toFixed(1)}</div>
@@ -387,7 +387,7 @@ export class IceFeatureBreakdown extends LitElement {
           </div>
           <div class="consensus-item">
             <div class="consensus-label">ICE Score</div>
-            <div class="consensus-value">${agg.avg_ice_score.toFixed(0)}</div>
+            <div class="consensus-value">${this.formatAggregateValue(agg.avg_ice_score, 0)}</div>
             ${agg.ice_stddev
               ? html`
                   <div class="consensus-stddev">±${agg.ice_stddev.toFixed(0)}</div>
@@ -401,15 +401,21 @@ export class IceFeatureBreakdown extends LitElement {
   }
 
   private renderRange(scores: SessionScore[], metric: 'impact' | 'confidence' | 'effort' | 'ice_score') {
-    if (scores.length === 0) return '';
+    const values = scores
+      .map(s => s[metric])
+      .filter((value): value is number => typeof value === 'number');
 
-    const values = scores.map(s => s[metric]);
+    if (values.length === 0) {
+      return html`<div class="consensus-range">No responses yet</div>`;
+    }
+
     const min = Math.min(...values);
     const max = Math.max(...values);
+    const digits = metric === 'ice_score' ? 0 : 1;
 
     return html`
       <div class="consensus-range">
-        Range: ${min.toFixed(metric === 'ice_score' ? 0 : 1)} - ${max.toFixed(metric === 'ice_score' ? 0 : 1)}
+        Range: ${min.toFixed(digits)} - ${max.toFixed(digits)}
       </div>
     `;
   }
@@ -502,24 +508,24 @@ export class IceFeatureBreakdown extends LitElement {
         <div class="score-metrics">
           <div class="metric-item">
             <div class="metric-label">Impact</div>
-            <div class="metric-value">${score.impact.toFixed(1)}</div>
+            <div class="metric-value">${this.formatScoreValue(score.impact)}</div>
           </div>
           <div class="metric-item">
             <div class="metric-label">Confidence</div>
-            <div class="metric-value">${score.confidence.toFixed(1)}</div>
+            <div class="metric-value">${this.formatScoreValue(score.confidence)}</div>
           </div>
           <div class="metric-item">
             <div class="metric-label">Effort</div>
-            <div class="metric-value">${score.effort.toFixed(1)}</div>
+            <div class="metric-value">${this.formatScoreValue(score.effort)}</div>
           </div>
           <div class="metric-item ice-score-highlight">
             <div class="metric-label">ICE Score</div>
-            <div class="metric-value">${score.ice_score.toFixed(0)}</div>
+            <div class="metric-value">${this.formatScoreValue(score.ice_score, 0)}</div>
           </div>
         </div>
 
-        <div class="score-tier" style="background-color: ${this.getTierColor(score.tier_name)};">
-          ${score.tier_name}
+        <div class="score-tier" style="background-color: ${this.getTierColor(score.tier_name || '')};">
+          ${score.tier_name || 'No tier yet'}
         </div>
 
         ${score.justification
@@ -559,6 +565,14 @@ export class IceFeatureBreakdown extends LitElement {
 
   private handleBack() {
     appStore.setStep('session-dashboard');
+  }
+
+  private formatAggregateValue(value?: number | null, digits = 1) {
+    return typeof value === 'number' ? value.toFixed(digits) : '—';
+  }
+
+  private formatScoreValue(value?: number | null, digits = 1) {
+    return typeof value === 'number' ? value.toFixed(digits) : '—';
   }
 }
 

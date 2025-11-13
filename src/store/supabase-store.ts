@@ -26,6 +26,9 @@ export class SupabaseStore {
 
   async saveScore(score: ScoreResult): Promise<ScoreResult | null> {
     if (!supabase) return null;
+    if (score.iceScore === null || !score.tier) {
+      throw new Error('Incomplete scores cannot be saved to Supabase.');
+    }
 
     try {
       const { data, error} = await supabase
@@ -57,7 +60,7 @@ export class SupabaseStore {
       if (score.impact !== undefined) updateData.impact = score.impact;
       if (score.confidence !== undefined) updateData.confidence = score.confidence;
       if (score.effort !== undefined) updateData.effort = score.effort;
-      if (score.iceScore !== undefined) updateData.ice_score = score.iceScore;
+      if (score.iceScore !== undefined && score.iceScore !== null) updateData.ice_score = score.iceScore;
       if (score.tier) {
         updateData.tier_name = score.tier.name;
         updateData.tier_priority = score.tier.priority;
@@ -153,9 +156,9 @@ export class SupabaseStore {
       impact: score.impact,
       confidence: score.confidence,
       effort: score.effort,
-      ice_score: score.iceScore,
-      tier_name: score.tier.name,
-      tier_priority: score.tier.priority,
+      ice_score: score.iceScore!,
+      tier_name: score.tier!.name,
+      tier_priority: score.tier!.priority,
       justification: score.justification || null,
       score_date: score.date,
       score_time: score.time,

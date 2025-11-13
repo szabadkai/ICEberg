@@ -255,7 +255,7 @@ export class IceExportManager extends LitElement {
 
     switch (this.sortBy) {
       case 'ice':
-        return scores.sort((a, b) => b.iceScore - a.iceScore);
+        return scores.sort((a, b) => (b.iceScore ?? -Infinity) - (a.iceScore ?? -Infinity));
       case 'date':
         return scores.sort((a, b) => {
           const dateA = new Date(`${a.date} ${a.time}`);
@@ -343,11 +343,17 @@ export class IceExportManager extends LitElement {
         <td>${score.impact.toFixed(1)}</td>
         <td>${score.confidence.toFixed(1)}</td>
         <td>${score.effort.toFixed(1)}</td>
-        <td class="score-cell" style="color: ${score.tier.color}">${score.iceScore.toFixed(2)}</td>
+        <td class="score-cell" style="color: ${score.tier?.color || '#1f2937'}">
+          ${score.iceScore !== null ? score.iceScore.toFixed(2) : '—'}
+        </td>
         <td>
-          <span class="tier-badge" style="background: ${score.tier.color}">
-            ${score.tier.priority}
-          </span>
+          ${score.tier
+            ? html`
+                <span class="tier-badge" style="background: ${score.tier.color}">
+                  ${score.tier.priority}
+                </span>
+              `
+            : ''}
         </td>
         <td>${score.date}</td>
         <td class="actions">

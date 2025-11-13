@@ -11,8 +11,16 @@ export interface Question {
   options: QuestionOption[];
 }
 
+export type SectionKey = 'impact' | 'confidence' | 'effort';
+
+export interface SectionPreferences {
+  impact: boolean;
+  confidence: boolean;
+  effort: boolean;
+}
+
 export interface QuestionSection {
-  id: 'impact' | 'confidence' | 'effort';
+  id: SectionKey;
   title: string;
   description: string;
   questions: Question[];
@@ -36,8 +44,9 @@ export interface ScoreResult {
   impact: number;
   confidence: number;
   effort: number;
-  iceScore: number;
-  tier: ScoreTier;
+  iceScore: number | null;
+  tier?: ScoreTier;
+  skippedSections?: SectionKey[];
   justification?: string;
   date: string;
   time: string;
@@ -137,12 +146,12 @@ export interface SessionScore {
   session_id: string;
   feature_id: string;
   scored_by: string;
-  impact: number;
-  confidence: number;
-  effort: number;
-  ice_score: number;
-  tier_name: string;
-  tier_priority: string;
+  impact: number | null;
+  confidence: number | null;
+  effort: number | null;
+  ice_score: number | null;
+  tier_name?: string | null;
+  tier_priority?: string | null;
   justification?: string;
   // Detailed responses stored as JSON
   responses?: SectionResponses;
@@ -154,10 +163,10 @@ export interface SessionAggregate {
   updated_at: string;
   session_id: string;
   feature_id: string;
-  avg_impact: number;
-  avg_confidence: number;
-  avg_effort: number;
-  avg_ice_score: number;
+  avg_impact: number | null;
+  avg_confidence: number | null;
+  avg_effort: number | null;
+  avg_ice_score: number | null;
   score_count: number;
   impact_stddev?: number;
   confidence_stddev?: number;
@@ -193,4 +202,6 @@ export interface AppState {
   currentSession?: ScoringSession;
   currentSessionFeature?: SessionFeature;
   sessions: ScoringSession[];
+  sectionPreferences: SectionPreferences;
+  theme: 'light' | 'dark';
 }

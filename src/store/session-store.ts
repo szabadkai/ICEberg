@@ -184,11 +184,11 @@ export class SessionStore {
     sessionId: string,
     featureId: string,
     scoredBy: string,
-    impact: number,
-    confidence: number,
-    effort: number,
-    iceScore: number,
-    tier: ScoreTier,
+    impact: number | null,
+    confidence: number | null,
+    effort: number | null,
+    iceScore: number | null,
+    tier?: ScoreTier,
     justification?: string,
     responses?: any
   ): Promise<SessionScore | null> {
@@ -207,8 +207,8 @@ export class SessionStore {
           confidence,
           effort,
           ice_score: iceScore,
-          tier_name: tier.name,
-          tier_priority: tier.priority,
+          tier_name: tier?.name ?? null,
+          tier_priority: tier?.priority ?? null,
           justification,
           responses: responses || null,
         })
@@ -233,10 +233,10 @@ export class SessionStore {
   async updateSessionScore(
     scoreId: string,
     updates: {
-      impact?: number;
-      confidence?: number;
-      effort?: number;
-      ice_score?: number;
+      impact?: number | null;
+      confidence?: number | null;
+      effort?: number | null;
+      ice_score?: number | null;
       tier_name?: string;
       tier_priority?: string;
       justification?: string;
