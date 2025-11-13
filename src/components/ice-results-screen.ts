@@ -225,6 +225,34 @@ export class IceResultsScreen extends LitElement {
       border-color: #9ca3af;
     }
 
+    :host-context([data-theme='dark']) .results-primary,
+    :host-context([data-theme='dark']) .results-secondary,
+    :host-context([data-theme='dark']) .tier-card,
+    :host-context([data-theme='dark']) .tier-example,
+    :host-context([data-theme='dark']) .tier-placeholder,
+    :host-context([data-theme='dark']) .justification-display {
+      background: var(--color-surface);
+      border-color: var(--color-border);
+      color: var(--color-text);
+    }
+
+    :host-context([data-theme='dark']) .tier-placeholder {
+      border-style: solid;
+      color: var(--color-text);
+    }
+
+    :host-context([data-theme='dark']) .tier-description,
+    :host-context([data-theme='dark']) .justification-label,
+    :host-context([data-theme='dark']) .feature-name {
+      color: var(--color-text);
+    }
+
+    :host-context([data-theme='dark']) .btn-tertiary {
+      background: transparent;
+      border-color: var(--color-border);
+      color: var(--color-text);
+    }
+
     button:focus {
       outline: 2px solid #3b82f6;
       outline-offset: 2px;

@@ -17,6 +17,7 @@ import { sessionStore } from './session-store';
 
 const STORAGE_KEY = 'ice-scorecard-data';
 const SECTION_PREF_KEY_PREFIX = 'ice-session-section-prefs';
+const THEME_STORAGE_KEY = 'ice-theme-preference';
 const MAX_SAVED_SCORES = 100;
 const SECTION_ORDER: SectionKey[] = ['impact', 'confidence', 'effort'];
 const DEFAULT_SECTION_PREFERENCES: SectionPreferences = {
@@ -32,6 +33,7 @@ export class AppStore {
 
   constructor() {
     this.state = this.loadState();
+    this.initializeTheme();
     this.initializeHistory();
     this.loadScoresFromSupabase();
     this.loadSessionsFromSupabase();
@@ -102,6 +104,7 @@ export class AppStore {
           toasts: [],
           sessions: [],
           sectionPreferences: { ...DEFAULT_SECTION_PREFERENCES },
+          theme: 'light',
         };
       }
     } catch (error) {
@@ -121,6 +124,7 @@ export class AppStore {
       toasts: [],
       sessions: [],
       sectionPreferences: { ...DEFAULT_SECTION_PREFERENCES },
+      theme: 'light',
     };
   }
 
@@ -263,6 +267,40 @@ export class AppStore {
     }
 
     this.notify();
+  }
+
+  private initializeTheme() {
+    if (typeof window === 'undefined') return;
+    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
+    if (storedTheme === 'dark' || storedTheme === 'light') {
+      this.state.theme = storedTheme;
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      this.state.theme = 'dark';
+    }
+
+    this.applyTheme(this.state.theme);
+  }
+
+  setTheme(theme: 'light' | 'dark'): void {
+    if (this.state.theme === theme) return;
+    this.state.theme = theme;
+    this.applyTheme(theme);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (error) {
+      console.warn('Unable to persist theme preference:', error);
+    }
+    this.notify();
+  }
+
+  toggleTheme(): void {
+    this.setTheme(this.state.theme === 'dark' ? 'light' : 'dark');
+  }
+
+  private applyTheme(theme: 'light' | 'dark') {
+    if (typeof document === 'undefined') return;
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body?.setAttribute('data-theme', theme);
   }
 
   private pushStepToHistory(step: AppStep, replace = false): void {

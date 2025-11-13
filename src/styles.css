@@ -2,12 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --color-surface-soft: #eef2ff;
+  --color-border: #e2e8f0;
+  --color-text: #0f172a;
+  --color-text-subtle: #475569;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-muted: #111827;
+  --color-surface-soft: #182032;
+  --color-border: #334155;
+  --color-text: #e2e8f0;
+  --color-text-subtle: #94a3b8;
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f9fafb;
+  background-color: var(--color-bg);
+  color: var(--color-text);
 }
 
 * {

@@ -72,8 +72,8 @@ export class IceSessionDashboard extends LitElement {
     .scorer-input {
       margin-bottom: 2rem;
       padding: 1.5rem;
-      background: #eff6ff;
-      border: 2px solid #bfdbfe;
+      background: var(--color-surface-soft);
+      border: 2px solid var(--color-border);
       border-radius: 0.75rem;
     }
 
@@ -147,8 +147,8 @@ export class IceSessionDashboard extends LitElement {
 
     .progress-section {
       margin-bottom: 2rem;
-      background: white;
-      border: 2px solid #e5e7eb;
+      background: var(--color-surface);
+      border: 2px solid var(--color-border);
       border-radius: 0.75rem;
       padding: 1.5rem;
     }
@@ -191,18 +191,20 @@ export class IceSessionDashboard extends LitElement {
     }
 
     .feature-list {
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--color-border);
       border-radius: 0.75rem;
       overflow: hidden;
+      background: var(--color-surface);
     }
 
     .feature-item {
       display: flex;
       gap: 1rem;
       padding: 1rem 1.25rem;
-      border-bottom: 1px solid #f3f4f6;
+      border-bottom: 1px solid var(--color-border);
       align-items: center;
       transition: background 0.2s, border-left 0.2s;
+      background: var(--color-surface);
     }
 
     .feature-item:last-child {
@@ -255,8 +257,8 @@ export class IceSessionDashboard extends LitElement {
       gap: 0.25rem;
       padding: 0.25rem 0.75rem;
       border-radius: 999px;
-      background: #e0f2fe;
-      color: #0c4a6e;
+      background: rgba(59, 130, 246, 0.15);
+      color: #1d4ed8;
       font-weight: 600;
       font-size: 0.8rem;
     }
@@ -294,6 +296,66 @@ export class IceSessionDashboard extends LitElement {
 
     .btn-secondary:hover {
       background: #f9fafb;
+    }
+
+    :host-context([data-theme='dark']) h2,
+    :host-context([data-theme='dark']) .session-meta,
+    :host-context([data-theme='dark']) .feature-name,
+    :host-context([data-theme='dark']) .feature-description,
+    :host-context([data-theme='dark']) .feature-meta span,
+    :host-context([data-theme='dark']) .progress-info,
+    :host-context([data-theme='dark']) .scorer-input,
+    :host-context([data-theme='dark']) .section-preferences,
+    :host-context([data-theme='dark']) .empty-state {
+      color: var(--color-text);
+    }
+
+    :host-context([data-theme='dark']) .scorer-input,
+    :host-context([data-theme='dark']) .progress-section,
+    :host-context([data-theme='dark']) .feature-list,
+    :host-context([data-theme='dark']) .feature-item,
+    :host-context([data-theme='dark']) .feature-card,
+    :host-context([data-theme='dark']) .btn-secondary,
+    :host-context([data-theme='dark']) .btn-primary,
+    :host-context([data-theme='dark']) .section-toggle,
+    :host-context([data-theme='dark']) .feature-pill {
+      background: var(--color-surface);
+      border-color: var(--color-border);
+      color: var(--color-text);
+    }
+
+    :host-context([data-theme='dark']) .progress-section,
+    :host-context([data-theme='dark']) .scorer-input {
+      box-shadow: 0 8px 20px rgba(2, 6, 23, 0.45);
+    }
+
+    :host-context([data-theme='dark']) .feature-item.current {
+      background: #1f2937;
+      border-left-color: #3b82f6;
+    }
+
+    :host-context([data-theme='dark']) .feature-item.completed {
+      background: rgba(16, 185, 129, 0.08);
+    }
+
+    :host-context([data-theme='dark']) .btn-primary {
+      background: #2563eb;
+      color: #f8fafc;
+    }
+
+    :host-context([data-theme='dark']) .btn-primary:hover {
+      background: #1d4ed8;
+    }
+
+    :host-context([data-theme='dark']) .btn-secondary {
+      background: transparent;
+      color: #e2e8f0;
+    }
+
+    :host-context([data-theme='dark']) .empty-state,
+    :host-context([data-theme='dark']) .loading {
+      background: rgba(15, 23, 42, 0.3);
+      border-radius: 0.75rem;
     }
 
     .action-buttons {

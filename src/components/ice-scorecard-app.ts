@@ -35,7 +35,8 @@ export class IceScorecardApp extends LitElement {
       align-items: center;
       min-height: 100vh;
       padding: 1.5rem;
-      background: #f8fafc;
+      background: var(--color-bg);
+      color: var(--color-text);
     }
 
     .container {
@@ -47,9 +48,9 @@ export class IceScorecardApp extends LitElement {
     }
 
     .card {
-      background: white;
+      background: var(--color-surface);
       border-radius: 12px;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--color-border);
       box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
       padding: 2rem;
       display: flex;
@@ -57,10 +58,45 @@ export class IceScorecardApp extends LitElement {
       min-height: 0;
     }
 
+    .card-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 1rem;
+    }
+
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.9rem;
+      border-radius: 999px;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface-muted);
+      color: var(--color-text);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+
+    .theme-toggle:hover {
+      background: #e0f2fe;
+    }
+
+    :host-context([data-theme='dark']) .card {
+      box-shadow: 0 15px 40px rgba(2, 6, 23, 0.6);
+    }
+
+    :host-context([data-theme='dark']) .theme-toggle {
+      background: #0f172a;
+      border-color: #334155;
+      color: #f8fafc;
+    }
+
     .progress-bar {
       width: 100%;
       height: 4px;
-      background: #e2e8f0;
+      background: var(--color-border);
       border-radius: 999px;
       overflow: hidden;
     }
@@ -125,6 +161,9 @@ export class IceScorecardApp extends LitElement {
       <div class="container">
         ${this.renderProgressBar()}
         <div class="card">
+          <div class="card-toolbar">
+            ${this.renderThemeToggle()}
+          </div>
           ${this.renderCurrentStep()}
         </div>
       </div>
@@ -134,6 +173,23 @@ export class IceScorecardApp extends LitElement {
 
       <!-- Confirm dialog -->
       <ice-confirm-container></ice-confirm-container>
+    `;
+  }
+
+  private renderThemeToggle() {
+    const isDark = this.appState.theme === 'dark';
+    const label = isDark ? 'Dark Mode' : 'Light Mode';
+    const icon = isDark ? '🌙' : '☀️';
+    return html`
+      <button
+        class="theme-toggle"
+        @click=${this.handleThemeToggle}
+        aria-label="Toggle theme"
+        aria-pressed=${isDark}
+      >
+        <span>${icon}</span>
+        <span>${label}</span>
+      </button>
     `;
   }
 
@@ -225,6 +281,10 @@ export class IceScorecardApp extends LitElement {
 
     return null;
   }
+
+  private handleThemeToggle = () => {
+    appStore.toggleTheme();
+  };
 }
 
 declare global {

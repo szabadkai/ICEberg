@@ -94,8 +94,8 @@ export class IceSessionList extends LitElement {
     }
 
     .session-card {
-      background: white;
-      border: 2px solid #e5e7eb;
+      background: var(--color-surface-soft);
+      border: 1px solid var(--color-border);
       border-radius: 0.75rem;
       padding: 1.5rem;
       transition: all 0.2s;
@@ -191,6 +191,22 @@ export class IceSessionList extends LitElement {
       .filter-group {
         justify-content: center;
       }
+    }
+
+    :host-context([data-theme='dark']) .filter-btn,
+    :host-context([data-theme='dark']) .btn-secondary,
+    :host-context([data-theme='dark']) .session-card,
+    :host-context([data-theme='dark']) .empty-state {
+      background: var(--color-surface-muted);
+      border-color: var(--color-border);
+      color: var(--color-text);
+    }
+
+    :host-context([data-theme='dark']) .filter-btn.active,
+    :host-context([data-theme='dark']) .btn-primary {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #f8fafc;
     }
   `;
 

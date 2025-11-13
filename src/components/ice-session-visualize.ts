@@ -52,7 +52,7 @@ export class IceSessionVisualize extends LitElement {
     }
 
     .chart-card {
-      background: white;
+      background: var(--color-surface);
       border: 2px solid #e5e7eb;
       border-radius: 0.75rem;
       padding: 2rem;
@@ -312,6 +312,38 @@ export class IceSessionVisualize extends LitElement {
       gap: 1rem;
     }
 
+    :host-context([data-theme='dark']) .chart-card,
+    :host-context([data-theme='dark']) .stat-card,
+    :host-context([data-theme='dark']) .tier-box,
+    :host-context([data-theme='dark']) .insight-item,
+    :host-context([data-theme='dark']) .alignment-row,
+    :host-context([data-theme='dark']) .variance-item {
+      background: var(--color-surface);
+      border-color: var(--color-border);
+      color: var(--color-text);
+    }
+
+    :host-context([data-theme='dark']) .insight-body,
+    :host-context([data-theme='dark']) .insight-meta,
+    :host-context([data-theme='dark']) .tier-name,
+    :host-context([data-theme='dark']) .tier-count,
+    :host-context([data-theme='dark']) .stat-label,
+    :host-context([data-theme='dark']) .stat-value,
+    :host-context([data-theme='dark']) .alignment-meta span,
+    :host-context([data-theme='dark']) .variance-label,
+    :host-context([data-theme='dark']) .variance-value {
+      color: var(--color-text);
+    }
+
+    :host-context([data-theme='dark']) .insight-pill.neutral {
+      background: #1f2937;
+      color: #e2e8f0;
+    }
+
+    :host-context([data-theme='dark']) .alignment-meter {
+      background: #0f172a;
+    }
+
     .variance-item {
       display: flex;
       align-items: center;
@@ -389,7 +421,7 @@ export class IceSessionVisualize extends LitElement {
     }
 
     .stat-card {
-      background: white;
+      background: var(--color-surface);
       border: 2px solid #e5e7eb;
       border-radius: 0.75rem;
       padding: 1.5rem;
